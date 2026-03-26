@@ -35,15 +35,23 @@
     <file src="../native/ios-simulator-arm64/libe_sqlcipher.a" target="runtimes/iossimulator-arm64/native/libe_sqlcipher.a" />
     <file src="../native/ios-simulator-x64/libe_sqlcipher.a" target="runtimes/iossimulator-x64/native/libe_sqlcipher.a" />
 
-    <!-- Targets file to copy native to output -->
-    <file src="e_sqlcipher.native.targets" target="build/e_sqlcipher.targets" />
-    <file src="e_sqlcipher.native.targets" target="buildTransitive/e_sqlcipher.targets" />
+    <!--
+      Desktop targets under netstandard2.0/ so NuGet only selects them for
+      desktop TFMs (net8.0, net10.0, net471, netstandard2.0, etc.).
+      For iOS/Android, the more-specific TFM folders below win NuGet's
+      TFM resolution, so the desktop targets never fire on mobile builds.
+      IMPORTANT: Do NOT add a root-level build/e_sqlcipher.targets — it
+      would fire alongside the TFM-specific file and inject the macOS
+      dylib into iOS builds (the build host is macOS arm64).
+    -->
+    <file src="e_sqlcipher.native.targets" target="build/netstandard2.0/e_sqlcipher.targets" />
+    <file src="e_sqlcipher.native.targets" target="buildTransitive/netstandard2.0/e_sqlcipher.targets" />
 
-    <!-- .NET MAUI / Android targets (use lowest .NET 10 platform version to match all consumers) -->
+    <!-- .NET MAUI / Android targets -->
     <file src="e_sqlcipher.native.android.targets" target="build/net10.0-android36.0/e_sqlcipher.targets" />
     <file src="e_sqlcipher.native.android.targets" target="buildTransitive/net10.0-android36.0/e_sqlcipher.targets" />
 
-    <!-- .NET MAUI / iOS targets (use lowest .NET 10 platform version to match all consumers) -->
+    <!-- .NET MAUI / iOS targets -->
     <file src="e_sqlcipher.native.ios.targets" target="build/net10.0-ios26.0/e_sqlcipher.targets" />
     <file src="e_sqlcipher.native.ios.targets" target="buildTransitive/net10.0-ios26.0/e_sqlcipher.targets" />
 
