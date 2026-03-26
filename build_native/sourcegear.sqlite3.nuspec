@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2012/06/nuspec.xsd">
+  <metadata>
+    <id>SourceGear.sqlite3</id>
+    <version>$version$</version>
+    <authors>SQLite Contributors</authors>
+    <license type="expression">Apache-2.0</license>
+    <description>Locally-built native e_sqlite3 library for CI testing. Built from SQLCipher source without encryption flags (plain SQLite).</description>
+    <tags>sqlite native</tags>
+  </metadata>
+  <files>
+    <!-- Only linux-x64 needed for CI test runner -->
+    <file src="../native-e_sqlite3/linux-x64/libe_sqlite3.so" target="runtimes/linux-x64/native/libe_sqlite3.so" />
+    <file src="e_sqlite3.native.targets" target="build/SourceGear.sqlite3.targets" />
+    <file src="e_sqlite3.native.targets" target="buildTransitive/SourceGear.sqlite3.targets" />
+  </files>
+</package>

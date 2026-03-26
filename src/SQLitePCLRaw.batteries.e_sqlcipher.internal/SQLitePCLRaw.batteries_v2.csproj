@@ -1,7 +1,7 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>netstandard2.0;net10.0</TargetFrameworks>
+    <TargetFramework>$(tfm_net)</TargetFramework>
     <SignAssembly>true</SignAssembly>
 	<AssemblyName>SQLitePCLRaw.batteries_v2</AssemblyName>
     <AssemblyOriginatorKeyFile>..\..\sn\SQLitePCLRaw.batteries_v2.snk</AssemblyOriginatorKeyFile>
@@ -12,7 +12,6 @@
     <Compile Include="..\..\src\common\batteries_v2.cs" />
   </ItemGroup>
 
-  <Import Project="..\msbuild_bundle_fragments\e_sqlite3_dllimport.xml" />
+  <Import Project="..\msbuild_bundle_fragments\e_sqlcipher_internal.xml" />
 
 </Project>
-

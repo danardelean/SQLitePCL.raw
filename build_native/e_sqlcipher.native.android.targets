@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!--
+    Android native targets for e_sqlcipher.
+    Includes the correct .so for each Android ABI as AndroidNativeLibrary.
+  -->
+  <ItemGroup Condition=" '$(RuntimeIdentifier)' == 'android-arm64' OR '$(AndroidSupportedAbis)' != '' ">
+    <AndroidNativeLibrary Condition="Exists('$(MSBuildThisFileDirectory)../../runtimes/android-arm64/native/libe_sqlcipher.so')"
+                          Include="$(MSBuildThisFileDirectory)../../runtimes/android-arm64/native/libe_sqlcipher.so"
+                          Abi="arm64-v8a" />
+  </ItemGroup>
+
+  <ItemGroup Condition=" '$(RuntimeIdentifier)' == 'android-arm' OR '$(AndroidSupportedAbis)' != '' ">
+    <AndroidNativeLibrary Condition="Exists('$(MSBuildThisFileDirectory)../../runtimes/android-arm/native/libe_sqlcipher.so')"
+                          Include="$(MSBuildThisFileDirectory)../../runtimes/android-arm/native/libe_sqlcipher.so"
+                          Abi="armeabi-v7a" />
+  </ItemGroup>
+
+  <ItemGroup Condition=" '$(RuntimeIdentifier)' == 'android-x64' OR '$(AndroidSupportedAbis)' != '' ">
+    <AndroidNativeLibrary Condition="Exists('$(MSBuildThisFileDirectory)../../runtimes/android-x64/native/libe_sqlcipher.so')"
+                          Include="$(MSBuildThisFileDirectory)../../runtimes/android-x64/native/libe_sqlcipher.so"
+                          Abi="x86_64" />
+  </ItemGroup>
+</Project>

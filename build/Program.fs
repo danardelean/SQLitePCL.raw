@@ -36,26 +36,31 @@ let main argv =
         "provider.winsqlite3" 
         "provider.e_sqlite3" 
         "provider.sqlite3" 
-        "provider.sqlcipher" 
+        "provider.sqlcipher"
+        "provider.e_sqlcipher"
     ]
     for s in pack_dirs do
         let dir_name = sprintf "SQLitePCLRaw.%s" s
         exec "dotnet" "pack -c Release" (Path.Combine(top, "src", dir_name))
 
-    // These two "batteries" assemblies are built but not packed in their own packages
+    // These "batteries" assemblies are built but not packed in their own packages
     let build_dirs = [
         "batteries.e_sqlite3.internal"
         "batteries.e_sqlite3.dllimport"
+        "batteries.e_sqlcipher.internal"
+        "batteries.e_sqlcipher.dllimport"
     ]
     for s in build_dirs do
         let dir_name = sprintf "SQLitePCLRaw.%s" s
         exec "dotnet" "build -c Release" (Path.Combine(top, "src", dir_name))
 
-    // These two packages are built using a dummy csproj and a separate nuspec,
-    // and the config package contains the batteries assemblies built above.
+    // These packages are built using a dummy csproj and a separate nuspec,
+    // and the config packages contain the batteries assemblies built above.
     let pack_dirs = [
         "config.e_sqlite3"
         "bundle_e_sqlite3"
+        "config.e_sqlcipher"
+        "bundle_e_sqlcipher"
     ]
     for s in pack_dirs do
         let dir_name = sprintf "SQLitePCLRaw.%s" s
@@ -83,7 +88,7 @@ let main argv =
         ]
 
     let fake_xunit_tfms = [
-        yield "net8.0"
+        yield "net10.0"
         if RuntimeInformation.IsOSPlatform(OSPlatform.Windows) then yield "net471"
         ]
 

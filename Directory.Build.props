@@ -4,9 +4,9 @@
     <Copyright>Copyright 2014-2025 SourceGear, LLC</Copyright>
     <Company>SourceGear</Company>
     <Authors>Eric Sink</Authors>
-    <Version>3.0.3-pre20260206143404</Version>
-    <AssemblyVersion>3.0.3.2958</AssemblyVersion>
-    <FileVersion>3.0.3.2958</FileVersion>
+    <Version>3.0.3-pre20260325173117</Version>
+    <AssemblyVersion>3.0.3.3005</AssemblyVersion>
+    <FileVersion>3.0.3.3005</FileVersion>
     <Description>SQLitePCLRaw is a Portable Class Library (PCL) for low-level (raw) access to SQLite</Description>
     <ProviderLangVersion>10.0</ProviderLangVersion>
     <GenerateAssemblyProductAttribute>false</GenerateAssemblyProductAttribute>
@@ -18,17 +18,17 @@
     <PackageOutputPath>$([System.IO.Path]::Combine($(MSBuildThisFileDirectory), 'nupkgs'))</PackageOutputPath>
     <src_path>$([System.IO.Path]::Combine($(MSBuildThisFileDirectory), 'src'))</src_path>
     <pkg_version_for_testing>$(Version)</pkg_version_for_testing>
-    <lib_e_sqlite3_package_reference_version>3.50.4.2</lib_e_sqlite3_package_reference_version>
-    <see_pkg_version_for_testing>3.50.4.2</see_pkg_version_for_testing>
+    <lib_e_sqlite3_package_reference_version>3.51.3</lib_e_sqlite3_package_reference_version>
+    <see_pkg_version_for_testing>3.51.3</see_pkg_version_for_testing>
     <depversion_xunit>2.6.3</depversion_xunit>
     <depversion_xunit_runner_visualstudio>2.5.5</depversion_xunit_runner_visualstudio>
     <depversion_microsoft_net_test_sdk>17.8.0</depversion_microsoft_net_test_sdk>
-    <tfm_net>net8.0</tfm_net>
+    <tfm_net>net10.0</tfm_net>
     <tfm_framework>net471</tfm_framework>
-    <tfm_windows>net8.0-windows</tfm_windows>
-    <tfm_ios>net10.0-ios26.0</tfm_ios>
-    <tfm_tvos>net10.0-tvos26.0</tfm_tvos>
-    <tfm_maccatalyst>net10.0-maccatalyst26.0</tfm_maccatalyst>
+    <tfm_windows>net10.0-windows</tfm_windows>
+    <tfm_ios>net10.0-ios26.2</tfm_ios>
+    <tfm_tvos>net10.0-tvos26.2</tfm_tvos>
+    <tfm_maccatalyst>net10.0-maccatalyst26.2</tfm_maccatalyst>
     <!--The NoNFloatUsing below is a workaround for xamarin/xamarin-macios/#14434-->
     <NoNFloatUsing>true</NoNFloatUsing>
   </PropertyGroup>

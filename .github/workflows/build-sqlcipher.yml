@@ -1,0 +1,737 @@
+name: Build SQLCipher Native Libraries & NuGet Packages
+
+on:
+  push:
+    branches: [ main, feature/sqlcipher-* ]
+    paths:
+      - 'build_native/**'
+      - '.github/workflows/build-sqlcipher.yml'
+      - 'src/**'
+      - 'build/**'
+      - 'gen_providers/**'
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  SQLCIPHER_VERSION: "4.14.0"
+  OPENSSL_VERSION: "3.4.1"
+
+jobs:
+  # ===========================================================================
+  # Linux builds (x64 and arm64) — OpenSSL crypto
+  # ===========================================================================
+  build-linux:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            arch: x64
+            rid: linux-x64
+          - os: ubuntu-24.04-arm
+            arch: arm64
+            rid: linux-arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y build-essential tcl
+
+      - name: Build OpenSSL from source (static)
+        run: |
+          curl -sL "https://github.com/openssl/openssl/releases/download/openssl-${{ env.OPENSSL_VERSION }}/openssl-${{ env.OPENSSL_VERSION }}.tar.gz" -o openssl.tar.gz
+          tar xzf openssl.tar.gz
+          cd openssl-${{ env.OPENSSL_VERSION }}
+          ./Configure linux-$(uname -m) \
+            --prefix=$GITHUB_WORKSPACE/openssl-install \
+            --openssldir=$GITHUB_WORKSPACE/openssl-install/ssl \
+            no-shared no-tests no-docs
+          make -j$(nproc)
+          make install_sw
+
+      - name: Clone SQLCipher
+        run: git clone --depth 1 --branch v${{ env.SQLCIPHER_VERSION }} https://github.com/sqlcipher/sqlcipher.git sqlcipher-src
+
+      - name: Build SQLCipher
+        run: |
+          cd sqlcipher-src
+          ./configure \
+            --with-tempstore=yes \
+            --disable-tcl \
+            --enable-shared \
+            --disable-static \
+            CFLAGS="-DSQLITE_HAS_CODEC \
+                    -DSQLCIPHER_CRYPTO_OPENSSL \
+                    -DSQLITE_TEMP_STORE=2 \
+                    -DSQLITE_THREADSAFE=1 \
+                    -DSQLITE_EXTRA_INIT=sqlcipher_extra_init \
+                    -DSQLITE_EXTRA_SHUTDOWN=sqlcipher_extra_shutdown \
+                    -DSQLITE_ENABLE_FTS3 \
+                    -DSQLITE_ENABLE_FTS3_PARENTHESIS \
+                    -DSQLITE_ENABLE_FTS4 \
+                    -DSQLITE_ENABLE_FTS5 \
+                    -DSQLITE_ENABLE_JSON1 \
+                    -DSQLITE_ENABLE_RTREE \
+                    -DSQLITE_ENABLE_GEOPOLY \
+                    -DSQLITE_ENABLE_COLUMN_METADATA \
+                    -DSQLITE_ENABLE_MATH_FUNCTIONS \
+                    -DSQLITE_ENABLE_LOAD_EXTENSION \
+                    -DSQLITE_ENABLE_PREUPDATE_HOOK \
+                    -DSQLITE_ENABLE_SESSION \
+                    -DSQLITE_SOUNDEX \
+                    -I$GITHUB_WORKSPACE/openssl-install/include \
+                    -fPIC -O2" \
+            LDFLAGS="-L$GITHUB_WORKSPACE/openssl-install/lib -L$GITHUB_WORKSPACE/openssl-install/lib64 -lcrypto -lpthread -ldl"
+          make -j$(nproc)
+
+      - name: Package native library
+        run: |
+          mkdir -p native/${{ matrix.rid }}
+          cp sqlcipher-src/.libs/libsqlite3.so.* native/${{ matrix.rid }}/libe_sqlcipher.so || \
+          cp sqlcipher-src/libsqlite3.so native/${{ matrix.rid }}/libe_sqlcipher.so
+          strip native/${{ matrix.rid }}/libe_sqlcipher.so
+          # Verify SQLCipher symbols
+          nm -D native/${{ matrix.rid }}/libe_sqlcipher.so | grep -q sqlite3_key
+          echo "✓ sqlite3_key symbol found in ${{ matrix.rid }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-${{ matrix.rid }}
+          path: native/${{ matrix.rid }}/
+
+  # ===========================================================================
+  # macOS builds (x64 and arm64) — CommonCrypto
+  # ===========================================================================
+  build-macos:
+    strategy:
+      matrix:
+        include:
+          - os: macos-15
+            arch: arm64
+            rid: osx-arm64
+            target_arch: arm64
+            host_triple: aarch64-apple-darwin
+          - os: macos-15
+            arch: x64
+            rid: osx-x64
+            target_arch: x86_64
+            host_triple: x86_64-apple-darwin
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Clone SQLCipher
+        run: git clone --depth 1 --branch v${{ env.SQLCIPHER_VERSION }} https://github.com/sqlcipher/sqlcipher.git sqlcipher-src
+
+      - name: Build SQLCipher (CommonCrypto)
+        run: |
+          cd sqlcipher-src
+          ./configure \
+            --host=${{ matrix.host_triple }} \
+            --with-tempstore=yes \
+            --disable-tcl \
+            --enable-shared \
+            --disable-static \
+            CC="cc" \
+            CFLAGS="-arch ${{ matrix.target_arch }} \
+                    -DSQLITE_HAS_CODEC \
+                    -DSQLCIPHER_CRYPTO_CC \
+                    -DSQLITE_TEMP_STORE=2 \
+                    -DSQLITE_THREADSAFE=1 \
+                    -DSQLITE_EXTRA_INIT=sqlcipher_extra_init \
+                    -DSQLITE_EXTRA_SHUTDOWN=sqlcipher_extra_shutdown \
+                    -DSQLITE_ENABLE_FTS3 \
+                    -DSQLITE_ENABLE_FTS3_PARENTHESIS \
+                    -DSQLITE_ENABLE_FTS4 \
+                    -DSQLITE_ENABLE_FTS5 \
+                    -DSQLITE_ENABLE_JSON1 \
+                    -DSQLITE_ENABLE_RTREE \
+                    -DSQLITE_ENABLE_GEOPOLY \
+                    -DSQLITE_ENABLE_COLUMN_METADATA \
+                    -DSQLITE_ENABLE_MATH_FUNCTIONS \
+                    -DSQLITE_ENABLE_LOAD_EXTENSION \
+                    -DSQLITE_ENABLE_PREUPDATE_HOOK \
+                    -DSQLITE_ENABLE_SESSION \
+                    -DSQLITE_SOUNDEX \
+                    -fPIC -O2" \
+            LDFLAGS="-arch ${{ matrix.target_arch }} -framework Security -framework CoreFoundation"
+          make -j$(sysctl -n hw.ncpu)
+
+      - name: Package native library
+        run: |
+          mkdir -p native/${{ matrix.rid }}
+          cp sqlcipher-src/.libs/libsqlite3.dylib native/${{ matrix.rid }}/libe_sqlcipher.dylib || \
+          cp sqlcipher-src/libsqlite3.dylib native/${{ matrix.rid }}/libe_sqlcipher.dylib
+          strip -x native/${{ matrix.rid }}/libe_sqlcipher.dylib
+          install_name_tool -id "@rpath/libe_sqlcipher.dylib" native/${{ matrix.rid }}/libe_sqlcipher.dylib
+          # Verify SQLCipher symbols
+          nm native/${{ matrix.rid }}/libe_sqlcipher.dylib | grep -q _sqlite3_key
+          echo "✓ sqlite3_key symbol found in ${{ matrix.rid }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-${{ matrix.rid }}
+          path: native/${{ matrix.rid }}/
+
+  # ===========================================================================
+  # Windows builds (x64 and arm64) — OpenSSL via vcpkg
+  # ===========================================================================
+  build-windows:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-2025
+            arch: x64
+            rid: win-x64
+            msvc_arch: amd64
+            vcpkg_triplet: x64-windows-static
+          - os: windows-2025
+            arch: arm64
+            rid: win-arm64
+            msvc_arch: amd64_arm64
+            vcpkg_triplet: arm64-windows-static
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install OpenSSL via vcpkg
+        run: |
+          vcpkg install openssl:${{ matrix.vcpkg_triplet }}
+        shell: cmd
+
+      - name: Clone SQLCipher
+        run: git clone --depth 1 --branch v${{ env.SQLCIPHER_VERSION }} https://github.com/sqlcipher/sqlcipher.git sqlcipher-src
+
+      # For ARM64 cross-compilation: generate the amalgamation with native x64 tools first,
+      # because Makefile.msc's code-generation tools (jimsh0, lemon, etc.) must run on the host.
+      - name: Setup native MSVC (x64, for code generation)
+        if: matrix.arch == 'arm64'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: amd64
+
+      - name: Generate SQLCipher amalgamation (native x64)
+        if: matrix.arch == 'arm64'
+        shell: cmd
+        run: |
+          cd sqlcipher-src
+          nmake /f Makefile.msc TOP=. sqlite3.c sqlite3.h
+
+      # Set up the target architecture compiler (x64 native or ARM64 cross-compiler)
+      - name: Setup MSVC (${{ matrix.msvc_arch }})
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: ${{ matrix.msvc_arch }}
+
+      - name: Build SQLCipher
+        shell: cmd
+        run: |
+          cd sqlcipher-src
+          nmake /f Makefile.msc TOP=. ^
+            "OPTS=-DSQLITE_HAS_CODEC -DSQLCIPHER_CRYPTO_OPENSSL -DSQLITE_TEMP_STORE=2 -DSQLITE_THREADSAFE=1 -DSQLITE_EXTRA_INIT=sqlcipher_extra_init -DSQLITE_EXTRA_SHUTDOWN=sqlcipher_extra_shutdown -DSQLITE_ENABLE_FTS3 -DSQLITE_ENABLE_FTS3_PARENTHESIS -DSQLITE_ENABLE_FTS4 -DSQLITE_ENABLE_FTS5 -DSQLITE_ENABLE_JSON1 -DSQLITE_ENABLE_RTREE -DSQLITE_ENABLE_GEOPOLY -DSQLITE_ENABLE_COLUMN_METADATA -DSQLITE_ENABLE_MATH_FUNCTIONS -DSQLITE_ENABLE_LOAD_EXTENSION -DSQLITE_ENABLE_PREUPDATE_HOOK -DSQLITE_ENABLE_SESSION -DSQLITE_SOUNDEX -DHAVE_STDINT_H=1 -I%VCPKG_INSTALLATION_ROOT%\installed\${{ matrix.vcpkg_triplet }}\include" ^
+            "LTLIBPATHS=/LIBPATH:%VCPKG_INSTALLATION_ROOT%\installed\${{ matrix.vcpkg_triplet }}\lib" ^
+            "LTLIBS=libcrypto.lib libssl.lib advapi32.lib user32.lib gdi32.lib ws2_32.lib crypt32.lib" ^
+            sqlite3.dll
+
+      - name: Package native library
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "native/${{ matrix.rid }}"
+          Copy-Item "sqlcipher-src/sqlite3.dll" "native/${{ matrix.rid }}/e_sqlcipher.dll"
+          # Verify symbols
+          dumpbin /exports "native/${{ matrix.rid }}/e_sqlcipher.dll" | Select-String "sqlite3_key"
+          Write-Host "✓ sqlite3_key symbol found in ${{ matrix.rid }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-${{ matrix.rid }}
+          path: native/${{ matrix.rid }}/
+
+  # ===========================================================================
+  # iOS builds (arm64 device + arm64/x86_64 simulator) — CommonCrypto
+  # Produces a static .a library + XCFramework for .NET MAUI native binding
+  # ===========================================================================
+  build-ios:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Clone SQLCipher
+        run: git clone --depth 1 --branch v${{ env.SQLCIPHER_VERSION }} https://github.com/sqlcipher/sqlcipher.git sqlcipher-src
+
+      - name: Build SQLCipher for iOS device (arm64)
+        run: |
+          cd sqlcipher-src
+          make clean || true
+
+          IOS_SDK=$(xcrun --sdk iphoneos --show-sdk-path)
+          IOS_MIN_VERSION="16.0"
+          CC="$(xcrun --sdk iphoneos -f clang)"
+
+          ./configure \
+            --host=aarch64-apple-darwin \
+            --with-tempstore=yes \
+            --disable-tcl \
+            --enable-static \
+            --disable-shared \
+            CC="$CC" \
+            CPP="$CC -E" \
+            CFLAGS="-isysroot $IOS_SDK \
+                    -arch arm64 \
+                    -miphoneos-version-min=$IOS_MIN_VERSION \
+                    -DSQLITE_HAS_CODEC \
+                    -DSQLCIPHER_CRYPTO_CC \
+                    -DSQLITE_TEMP_STORE=2 \
+                    -DSQLITE_THREADSAFE=1 \
+                    -DSQLITE_EXTRA_INIT=sqlcipher_extra_init \
+                    -DSQLITE_EXTRA_SHUTDOWN=sqlcipher_extra_shutdown \
+                    -DSQLITE_ENABLE_FTS3 \
+                    -DSQLITE_ENABLE_FTS3_PARENTHESIS \
+                    -DSQLITE_ENABLE_FTS4 \
+                    -DSQLITE_ENABLE_FTS5 \
+                    -DSQLITE_ENABLE_JSON1 \
+                    -DSQLITE_ENABLE_RTREE \
+                    -DSQLITE_ENABLE_GEOPOLY \
+                    -DSQLITE_ENABLE_COLUMN_METADATA \
+                    -DSQLITE_ENABLE_MATH_FUNCTIONS \
+                    -DSQLITE_ENABLE_PREUPDATE_HOOK \
+                    -DSQLITE_ENABLE_SESSION \
+                    -DSQLITE_SOUNDEX \
+                    -fPIC -O2" \
+            LDFLAGS="-isysroot $IOS_SDK -arch arm64 -miphoneos-version-min=$IOS_MIN_VERSION -framework Security -framework CoreFoundation"
+          make -j$(sysctl -n hw.ncpu) libsqlite3.a
+
+          mkdir -p ../build_output/ios-device
+          cp .libs/libsqlite3.a ../build_output/ios-device/libe_sqlcipher.a || \
+          cp libsqlite3.a ../build_output/ios-device/libe_sqlcipher.a
+
+      - name: Build SQLCipher for iOS simulator (arm64)
+        run: |
+          cd sqlcipher-src
+          make clean
+
+          SIM_SDK=$(xcrun --sdk iphonesimulator --show-sdk-path)
+          IOS_MIN_VERSION="16.0"
+          CC="$(xcrun --sdk iphonesimulator -f clang)"
+
+          ./configure \
+            --host=aarch64-apple-darwin \
+            --with-tempstore=yes \
+            --disable-tcl \
+            --enable-static \
+            --disable-shared \
+            CC="$CC" \
+            CPP="$CC -E" \
+            CFLAGS="-isysroot $SIM_SDK \
+                    -arch arm64 \
+                    -miphonesimulator-version-min=$IOS_MIN_VERSION \
+                    -DSQLITE_HAS_CODEC \
+                    -DSQLCIPHER_CRYPTO_CC \
+                    -DSQLITE_TEMP_STORE=2 \
+                    -DSQLITE_THREADSAFE=1 \
+                    -DSQLITE_EXTRA_INIT=sqlcipher_extra_init \
+                    -DSQLITE_EXTRA_SHUTDOWN=sqlcipher_extra_shutdown \
+                    -DSQLITE_ENABLE_FTS3 \
+                    -DSQLITE_ENABLE_FTS3_PARENTHESIS \
+                    -DSQLITE_ENABLE_FTS4 \
+                    -DSQLITE_ENABLE_FTS5 \
+                    -DSQLITE_ENABLE_JSON1 \
+                    -DSQLITE_ENABLE_RTREE \
+                    -DSQLITE_ENABLE_GEOPOLY \
+                    -DSQLITE_ENABLE_COLUMN_METADATA \
+                    -DSQLITE_ENABLE_MATH_FUNCTIONS \
+                    -DSQLITE_ENABLE_PREUPDATE_HOOK \
+                    -DSQLITE_ENABLE_SESSION \
+                    -DSQLITE_SOUNDEX \
+                    -fPIC -O2" \
+            LDFLAGS="-isysroot $SIM_SDK -arch arm64 -miphonesimulator-version-min=$IOS_MIN_VERSION -framework Security -framework CoreFoundation"
+          make -j$(sysctl -n hw.ncpu) libsqlite3.a
+
+          mkdir -p ../build_output/ios-simulator-arm64
+          cp .libs/libsqlite3.a ../build_output/ios-simulator-arm64/libe_sqlcipher.a || \
+          cp libsqlite3.a ../build_output/ios-simulator-arm64/libe_sqlcipher.a
+
+      - name: Build SQLCipher for iOS simulator (x86_64)
+        run: |
+          cd sqlcipher-src
+          make clean
+
+          SIM_SDK=$(xcrun --sdk iphonesimulator --show-sdk-path)
+          IOS_MIN_VERSION="16.0"
+          CC="$(xcrun --sdk iphonesimulator -f clang)"
+
+          ./configure \
+            --host=x86_64-apple-darwin \
+            --with-tempstore=yes \
+            --disable-tcl \
+            --enable-static \
+            --disable-shared \
+            CC="$CC" \
+            CPP="$CC -E" \
+            CFLAGS="-isysroot $SIM_SDK \
+                    -arch x86_64 \
+                    -miphonesimulator-version-min=$IOS_MIN_VERSION \
+                    -DSQLITE_HAS_CODEC \
+                    -DSQLCIPHER_CRYPTO_CC \
+                    -DSQLITE_TEMP_STORE=2 \
+                    -DSQLITE_THREADSAFE=1 \
+                    -DSQLITE_EXTRA_INIT=sqlcipher_extra_init \
+                    -DSQLITE_EXTRA_SHUTDOWN=sqlcipher_extra_shutdown \
+                    -DSQLITE_ENABLE_FTS3 \
+                    -DSQLITE_ENABLE_FTS3_PARENTHESIS \
+                    -DSQLITE_ENABLE_FTS4 \
+                    -DSQLITE_ENABLE_FTS5 \
+                    -DSQLITE_ENABLE_JSON1 \
+                    -DSQLITE_ENABLE_RTREE \
+                    -DSQLITE_ENABLE_GEOPOLY \
+                    -DSQLITE_ENABLE_COLUMN_METADATA \
+                    -DSQLITE_ENABLE_MATH_FUNCTIONS \
+                    -DSQLITE_ENABLE_PREUPDATE_HOOK \
+                    -DSQLITE_ENABLE_SESSION \
+                    -DSQLITE_SOUNDEX \
+                    -fPIC -O2" \
+            LDFLAGS="-isysroot $SIM_SDK -arch x86_64 -miphonesimulator-version-min=$IOS_MIN_VERSION -framework Security -framework CoreFoundation"
+          make -j$(sysctl -n hw.ncpu) libsqlite3.a
+
+          mkdir -p ../build_output/ios-simulator-x64
+          cp .libs/libsqlite3.a ../build_output/ios-simulator-x64/libe_sqlcipher.a || \
+          cp libsqlite3.a ../build_output/ios-simulator-x64/libe_sqlcipher.a
+
+      - name: Create fat simulator library and XCFramework
+        run: |
+          # Create fat simulator lib (arm64 + x86_64)
+          mkdir -p build_output/ios-simulator-fat
+          lipo -create \
+            build_output/ios-simulator-arm64/libe_sqlcipher.a \
+            build_output/ios-simulator-x64/libe_sqlcipher.a \
+            -output build_output/ios-simulator-fat/libe_sqlcipher.a
+
+          # Create XCFramework
+          xcodebuild -create-xcframework \
+            -library build_output/ios-device/libe_sqlcipher.a \
+            -library build_output/ios-simulator-fat/libe_sqlcipher.a \
+            -output build_output/libe_sqlcipher.xcframework
+
+          # Also keep individual .a files for NuGet packaging
+          mkdir -p native/ios-arm64
+          mkdir -p native/ios-simulator-arm64
+          mkdir -p native/ios-simulator-x64
+          cp build_output/ios-device/libe_sqlcipher.a native/ios-arm64/
+          cp build_output/ios-simulator-arm64/libe_sqlcipher.a native/ios-simulator-arm64/
+          cp build_output/ios-simulator-x64/libe_sqlcipher.a native/ios-simulator-x64/
+
+          # Package xcframework as a zip for the artifact
+          mkdir -p native/ios-xcframework
+          cp -R build_output/libe_sqlcipher.xcframework native/ios-xcframework/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-ios
+          path: native/
+
+  # ===========================================================================
+  # Android builds (arm64-v8a, armeabi-v7a, x86_64) — OpenSSL via NDK
+  # ===========================================================================
+  build-android:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        include:
+          - abi: arm64-v8a
+            arch: aarch64
+            host: aarch64-linux-android
+            rid: android-arm64
+            api: 21
+          - abi: armeabi-v7a
+            arch: arm
+            host: armv7a-linux-androideabi
+            rid: android-arm
+            api: 21
+          - abi: x86_64
+            arch: x86_64
+            host: x86_64-linux-android
+            rid: android-x64
+            api: 21
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Android NDK
+        uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: 11076708
+
+      - name: Install NDK
+        run: sdkmanager "ndk;27.2.12479018"
+
+      - name: Clone SQLCipher
+        run: git clone --depth 1 --branch v${{ env.SQLCIPHER_VERSION }} https://github.com/sqlcipher/sqlcipher.git sqlcipher-src
+
+      - name: Build OpenSSL for Android (${{ matrix.abi }})
+        run: |
+          export ANDROID_NDK_ROOT=$ANDROID_SDK_ROOT/ndk/27.2.12479018
+          export PATH=$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH
+
+          curl -sL "https://github.com/openssl/openssl/releases/download/openssl-${{ env.OPENSSL_VERSION }}/openssl-${{ env.OPENSSL_VERSION }}.tar.gz" -o openssl.tar.gz
+          tar xzf openssl.tar.gz
+          cd openssl-${{ env.OPENSSL_VERSION }}
+
+          # Map ABI to OpenSSL target
+          OPENSSL_TARGET=""
+          case "${{ matrix.abi }}" in
+            arm64-v8a)    OPENSSL_TARGET="android-arm64" ;;
+            armeabi-v7a)  OPENSSL_TARGET="android-arm" ;;
+            x86_64)       OPENSSL_TARGET="android-x86_64" ;;
+          esac
+
+          ./Configure $OPENSSL_TARGET \
+            -D__ANDROID_API__=${{ matrix.api }} \
+            --prefix=$GITHUB_WORKSPACE/openssl-install \
+            --openssldir=$GITHUB_WORKSPACE/openssl-install/ssl \
+            no-shared no-tests no-docs
+          make -j$(nproc)
+          make install_sw
+
+      - name: Build SQLCipher for Android (${{ matrix.abi }})
+        run: |
+          export ANDROID_NDK_ROOT=$ANDROID_SDK_ROOT/ndk/27.2.12479018
+          TOOLCHAIN=$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64
+
+          # Determine the correct compiler prefix
+          case "${{ matrix.abi }}" in
+            arm64-v8a)    CC_PREFIX="aarch64-linux-android${{ matrix.api }}" ; HOST="aarch64-linux-android" ;;
+            armeabi-v7a)  CC_PREFIX="armv7a-linux-androideabi${{ matrix.api }}" ; HOST="arm-linux-androideabi" ;;
+            x86_64)       CC_PREFIX="x86_64-linux-android${{ matrix.api }}" ; HOST="x86_64-linux-android" ;;
+          esac
+
+          export CC="$TOOLCHAIN/bin/${CC_PREFIX}-clang"
+          export AR="$TOOLCHAIN/bin/llvm-ar"
+          export RANLIB="$TOOLCHAIN/bin/llvm-ranlib"
+          export STRIP="$TOOLCHAIN/bin/llvm-strip"
+
+          cd sqlcipher-src
+          make clean || true
+
+          ./configure \
+            --host=$HOST \
+            --with-tempstore=yes \
+            --disable-tcl \
+            --enable-shared \
+            --disable-static \
+            CC="$CC" \
+            AR="$AR" \
+            RANLIB="$RANLIB" \
+            CFLAGS="-DSQLITE_HAS_CODEC \
+                    -DSQLCIPHER_CRYPTO_OPENSSL \
+                    -DSQLITE_TEMP_STORE=2 \
+                    -DSQLITE_THREADSAFE=1 \
+                    -DSQLITE_EXTRA_INIT=sqlcipher_extra_init \
+                    -DSQLITE_EXTRA_SHUTDOWN=sqlcipher_extra_shutdown \
+                    -DSQLITE_ENABLE_FTS3 \
+                    -DSQLITE_ENABLE_FTS3_PARENTHESIS \
+                    -DSQLITE_ENABLE_FTS4 \
+                    -DSQLITE_ENABLE_FTS5 \
+                    -DSQLITE_ENABLE_JSON1 \
+                    -DSQLITE_ENABLE_RTREE \
+                    -DSQLITE_ENABLE_GEOPOLY \
+                    -DSQLITE_ENABLE_COLUMN_METADATA \
+                    -DSQLITE_ENABLE_MATH_FUNCTIONS \
+                    -DSQLITE_ENABLE_PREUPDATE_HOOK \
+                    -DSQLITE_ENABLE_SESSION \
+                    -DSQLITE_SOUNDEX \
+                    -I$GITHUB_WORKSPACE/openssl-install/include \
+                    -fPIC -O2" \
+            LDFLAGS="-L$GITHUB_WORKSPACE/openssl-install/lib -L$GITHUB_WORKSPACE/openssl-install/lib64 -lcrypto -llog"
+          make -j$(nproc)
+
+          mkdir -p ../native/${{ matrix.rid }}
+          cp .libs/libsqlite3.so ../native/${{ matrix.rid }}/libe_sqlcipher.so || \
+          cp libsqlite3.so ../native/${{ matrix.rid }}/libe_sqlcipher.so
+          $STRIP ../native/${{ matrix.rid }}/libe_sqlcipher.so
+
+          # Verify
+          $TOOLCHAIN/bin/llvm-nm -D ../native/${{ matrix.rid }}/libe_sqlcipher.so | grep -q sqlite3_key
+          echo "✓ sqlite3_key symbol found for ${{ matrix.abi }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-${{ matrix.rid }}
+          path: native/${{ matrix.rid }}/
+
+  # ===========================================================================
+  # Package all native libraries into NuGet + build SQLitePCLRaw packages
+  # ===========================================================================
+  pack-nuget:
+    needs: [build-linux, build-macos, build-windows, build-ios, build-android]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+          dotnet-quality: 'preview'
+
+      - name: Download all native artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: native-artifacts
+          pattern: native-*
+
+      - name: Arrange native libraries
+        run: |
+          # Without merge-multiple, each artifact downloads into its own directory:
+          #   native-artifacts/native-linux-x64/libe_sqlcipher.so
+          #   native-artifacts/native-osx-arm64/libe_sqlcipher.dylib
+          #   native-artifacts/native-ios/ios-arm64/..., ios-xcframework/...
+          #   etc.
+          echo "=== Downloaded artifacts ==="
+          find native-artifacts -type f | sort
+
+          mkdir -p native
+          # Desktop & Android shared libs
+          for rid in linux-x64 linux-arm64 osx-x64 osx-arm64 win-x64 win-arm64 android-arm64 android-arm android-x64; do
+            if [ -d "native-artifacts/native-$rid" ]; then
+              mkdir -p "native/$rid"
+              cp -r "native-artifacts/native-$rid/"* "native/$rid/"
+            fi
+          done
+          # iOS static libs and xcframework (uploaded as single native-ios artifact with subdirectories)
+          if [ -d "native-artifacts/native-ios" ]; then
+            cp -r native-artifacts/native-ios/* native/
+          fi
+
+          echo "=== Native libraries layout ==="
+          find native -type f | sort
+
+      - name: Pack native e_sqlcipher NuGet package
+        run: |
+          cd build_native
+          dotnet pack e_sqlcipher.native.csproj -c Release \
+            -p:NuspecFile=e_sqlcipher.native.nuspec \
+            -p:Version=${{ env.SQLCIPHER_VERSION }} \
+            -o ../nupkgs
+
+      - name: Build plain e_sqlite3 native library (for SourceGear.sqlite3 test dependency)
+        run: |
+          # Build SQLite from sqlcipher source WITHOUT encryption flags = plain SQLite
+          # Only need linux-x64 for the CI test runner
+          sudo apt-get update && sudo apt-get install -y build-essential tcl
+          git clone --depth 1 --branch v${{ env.SQLCIPHER_VERSION }} https://github.com/sqlcipher/sqlcipher.git sqlcipher-plain
+          cd sqlcipher-plain
+          ./configure \
+            --with-tempstore=yes \
+            --disable-tcl \
+            --enable-shared \
+            --disable-static \
+            CFLAGS="-DSQLITE_TEMP_STORE=2 \
+                    -DSQLITE_THREADSAFE=1 \
+                    -DSQLITE_ENABLE_FTS3 \
+                    -DSQLITE_ENABLE_FTS3_PARENTHESIS \
+                    -DSQLITE_ENABLE_FTS4 \
+                    -DSQLITE_ENABLE_FTS5 \
+                    -DSQLITE_ENABLE_JSON1 \
+                    -DSQLITE_ENABLE_RTREE \
+                    -DSQLITE_ENABLE_GEOPOLY \
+                    -DSQLITE_ENABLE_COLUMN_METADATA \
+                    -DSQLITE_ENABLE_MATH_FUNCTIONS \
+                    -DSQLITE_ENABLE_LOAD_EXTENSION \
+                    -DSQLITE_ENABLE_PREUPDATE_HOOK \
+                    -DSQLITE_ENABLE_SESSION \
+                    -DSQLITE_SOUNDEX \
+                    -fPIC -O2"
+          make -j$(nproc)
+
+          # Package as libe_sqlite3.so
+          mkdir -p ../native-e_sqlite3/linux-x64
+          cp .libs/libsqlite3.so.* ../native-e_sqlite3/linux-x64/libe_sqlite3.so || \
+          cp libsqlite3.so ../native-e_sqlite3/linux-x64/libe_sqlite3.so
+          strip ../native-e_sqlite3/linux-x64/libe_sqlite3.so
+          echo "✓ Built plain e_sqlite3 for linux-x64"
+
+      - name: Pack SourceGear.sqlite3 NuGet package (local, for testing)
+        run: |
+          cd build_native
+          dotnet pack sourcegear.sqlite3.csproj -c Release \
+            -p:NuspecFile=sourcegear.sqlite3.nuspec \
+            -p:Version=3.51.3 \
+            -o ../nupkgs
+          echo "=== SourceGear.sqlite3 package ==="
+          ls -lh ../nupkgs/SourceGear.sqlite3*
+
+      - name: Install T4
+        run: |
+          dotnet tool install --global dotnet-t4 || dotnet tool install --global dotnet-t4 --version 2.3.1
+          ls -la "$HOME/.dotnet/tools/" || true
+          sudo ln -sf "$HOME/.dotnet/tools/t4" /usr/local/bin/t4
+          which t4
+
+      - name: Remove SourceGear private NuGet feeds (not available in fork)
+        run: |
+          dotnet nuget remove source sourcegear_see 2>/dev/null || true
+          dotnet nuget remove source sourcegear_main 2>/dev/null || true
+          cat nuget.config
+
+      - name: Build SQLitePCLRaw packages
+        run: |
+          # Run version stamp
+          cd version_stamp && dotnet run .. && cd ..
+          # Generate providers (needs t4)
+          cd gen_providers && dotnet run && cd ..
+          # Clean old SQLitePCLRaw packages but preserve native packages (e_sqlcipher, SourceGear.sqlite3)
+          rm -f nupkgs/SQLitePCLRaw.*.nupkg
+          mkdir -p nupkgs
+          # Pack all provider/core packages
+          for pkg in core ugly provider.dynamic_cdecl provider.dynamic_stdcall provider.internal provider.winsqlite3 provider.e_sqlite3 provider.sqlite3 provider.sqlcipher provider.e_sqlcipher; do
+            dotnet pack -c Release "src/SQLitePCLRaw.$pkg"
+          done
+          # Build batteries assemblies (not packed separately)
+          for pkg in batteries.e_sqlite3.internal batteries.e_sqlite3.dllimport batteries.e_sqlcipher.internal batteries.e_sqlcipher.dllimport; do
+            dotnet build -c Release "src/SQLitePCLRaw.$pkg"
+          done
+          # Pack config and bundle packages (contain batteries)
+          for pkg in config.e_sqlite3 bundle_e_sqlite3 config.e_sqlcipher bundle_e_sqlcipher; do
+            dotnet pack -c Release "src/SQLitePCLRaw.$pkg"
+          done
+
+      - name: Run smoke tests
+        run: |
+          echo "=== smoke (C#) ==="
+          dotnet run --project test_nupkgs/smoke
+          echo "=== fsmoke (F#) ==="
+          dotnet run --project test_nupkgs/fsmoke
+
+      - name: Run e_sqlcipher smoke test
+        run: |
+          echo "=== e_sqlcipher smoke (verify encryption works) ==="
+          dotnet run --project test_nupkgs/e_sqlcipher_smoke
+
+      - name: Run e_sqlite3 tests
+        run: |
+          echo "=== e_sqlite3 real_xunit ==="
+          dotnet test --framework=net10.0 test_nupkgs/e_sqlite3/real_xunit
+          echo "=== e_sqlite3 fake_xunit ==="
+          dotnet run --framework=net10.0 --project test_nupkgs/e_sqlite3/fake_xunit
+
+      - name: Run sqlite3 provider tests
+        run: |
+          echo "=== sqlite3 fake_xunit (uses system libsqlite3) ==="
+          dotnet run --framework=net10.0 --project test_nupkgs/sqlite3/fake_xunit
+
+      - name: List generated packages
+        run: |
+          echo "=== Generated NuGet packages ==="
+          ls -lh nupkgs/*.nupkg
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nupkg-all
+          path: nupkgs/*.nupkg
+
+      - name: Create GitHub Release (on tag push)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: nupkgs/*.nupkg

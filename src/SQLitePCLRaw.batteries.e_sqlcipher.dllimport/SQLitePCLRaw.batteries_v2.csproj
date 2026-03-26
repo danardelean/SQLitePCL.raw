@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFrameworks>netstandard2.0;net10.0</TargetFrameworks>
@@ -12,7 +12,6 @@
     <Compile Include="..\..\src\common\batteries_v2.cs" />
   </ItemGroup>
 
-  <Import Project="..\msbuild_bundle_fragments\e_sqlite3_dllimport.xml" />
+  <Import Project="..\msbuild_bundle_fragments\e_sqlcipher_dllimport.xml" />
 
 </Project>
-

@@ -1,20 +1,20 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <package xmlns="http://schemas.microsoft.com/packaging/2012/06/nuspec.xsd">
   <metadata>
-    <id>SQLitePCLRaw.bundle_e_sqlite3</id>
+    <id>SQLitePCLRaw.bundle_e_sqlcipher</id>
     <version>$version$</version>
     <authors>Eric Sink</authors>
     <license type="expression">Apache-2.0</license>
     <licenseUrl>https://licenses.nuget.org/Apache-2.0</licenseUrl>
     <readme>README.md</readme>
-    <description>This 'batteries-included' bundle brings in SQLitePCLRaw.core and the necessary stuff for certain common use cases.  Call SQLitePCL.Batteries.Init().</description>
+    <description>This 'batteries-included' bundle brings in SQLitePCLRaw.core and the necessary stuff for using SQLCipher 4.14.0+ (based on SQLite 3.51.3).  Call SQLitePCL.Batteries.Init().</description>
     <copyright>Copyright 2014-2026 SourceGear, LLC</copyright>
-    <tags>sqlite</tags>
+    <tags>sqlite sqlcipher encryption</tags>
     <repository type="git" url="https://github.com/ericsink/SQLitePCL.raw" />
     <dependencies>
       <group targetFramework=".NETStandard2.0">
-        <dependency id="SQLitePCLRaw.config.e_sqlite3" version="$version$" exclude="Build,Analyzers" />
-        <dependency id="SourceGear.sqlite3" version="3.51.3" exclude="Build,Analyzers" />
+        <dependency id="SQLitePCLRaw.config.e_sqlcipher" version="$version$" exclude="Build,Analyzers" />
+        <dependency id="e_sqlcipher" version="4.14.0" exclude="Build,Analyzers" />
       </group>
     </dependencies>
   </metadata>

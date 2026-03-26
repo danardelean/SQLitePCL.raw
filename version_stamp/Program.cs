@@ -104,17 +104,17 @@ public static class gen
 
             f.WriteElementString("src_path", "$([System.IO.Path]::Combine($(MSBuildThisFileDirectory), 'src'))");
             f.WriteElementString("pkg_version_for_testing", "$(Version)");
-            f.WriteElementString("lib_e_sqlite3_package_reference_version", "3.50.4.2");
-            f.WriteElementString("see_pkg_version_for_testing", "3.50.4.2");
+            f.WriteElementString("lib_e_sqlite3_package_reference_version", "3.51.3");
+            f.WriteElementString("see_pkg_version_for_testing", "3.51.3");
             f.WriteElementString("depversion_xunit", "2.6.3");
             f.WriteElementString("depversion_xunit_runner_visualstudio", "2.5.5");
             f.WriteElementString("depversion_microsoft_net_test_sdk", "17.8.0");
-            f.WriteElementString("tfm_net", "net8.0");
+            f.WriteElementString("tfm_net", "net10.0");
             f.WriteElementString("tfm_framework", "net471");
-            f.WriteElementString("tfm_windows", "net8.0-windows");
-            f.WriteElementString("tfm_ios", "net10.0-ios26.0");
-            f.WriteElementString("tfm_tvos", "net10.0-tvos26.0");
-            f.WriteElementString("tfm_maccatalyst", "net10.0-maccatalyst26.0");
+            f.WriteElementString("tfm_windows", "net10.0-windows");
+            f.WriteElementString("tfm_ios", "net10.0-ios26.2");
+            f.WriteElementString("tfm_tvos", "net10.0-tvos26.2");
+            f.WriteElementString("tfm_maccatalyst", "net10.0-maccatalyst26.2");
 
             f.WriteComment("The NoNFloatUsing below is a workaround for xamarin/xamarin-macios/#14434");
             f.WriteElementString("NoNFloatUsing", "true");
