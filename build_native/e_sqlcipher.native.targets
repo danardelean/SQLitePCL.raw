@@ -8,42 +8,42 @@
   -->
 
   <ItemGroup Condition=" '$(RuntimeIdentifier)' == 'linux-x64' OR ('$(RuntimeIdentifier)' == '' AND $([MSBuild]::IsOSPlatform('Linux')) AND '$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)' == 'X64') ">
-    <Content Include="$(MSBuildThisFileDirectory)../runtimes/linux-x64/native/libe_sqlcipher.so">
+    <Content Include="$(MSBuildThisFileDirectory)../../runtimes/linux-x64/native/libe_sqlcipher.so">
       <Link>libe_sqlcipher.so</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
 
   <ItemGroup Condition=" '$(RuntimeIdentifier)' == 'linux-arm64' OR ('$(RuntimeIdentifier)' == '' AND $([MSBuild]::IsOSPlatform('Linux')) AND '$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)' == 'Arm64') ">
-    <Content Include="$(MSBuildThisFileDirectory)../runtimes/linux-arm64/native/libe_sqlcipher.so">
+    <Content Include="$(MSBuildThisFileDirectory)../../runtimes/linux-arm64/native/libe_sqlcipher.so">
       <Link>libe_sqlcipher.so</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
 
   <ItemGroup Condition=" '$(RuntimeIdentifier)' == 'osx-x64' OR ('$(RuntimeIdentifier)' == '' AND $([MSBuild]::IsOSPlatform('OSX')) AND '$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)' == 'X64') ">
-    <Content Include="$(MSBuildThisFileDirectory)../runtimes/osx-x64/native/libe_sqlcipher.dylib">
+    <Content Include="$(MSBuildThisFileDirectory)../../runtimes/osx-x64/native/libe_sqlcipher.dylib">
       <Link>libe_sqlcipher.dylib</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
 
   <ItemGroup Condition=" '$(RuntimeIdentifier)' == 'osx-arm64' OR ('$(RuntimeIdentifier)' == '' AND $([MSBuild]::IsOSPlatform('OSX')) AND '$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)' == 'Arm64') ">
-    <Content Include="$(MSBuildThisFileDirectory)../runtimes/osx-arm64/native/libe_sqlcipher.dylib">
+    <Content Include="$(MSBuildThisFileDirectory)../../runtimes/osx-arm64/native/libe_sqlcipher.dylib">
       <Link>libe_sqlcipher.dylib</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
 
   <ItemGroup Condition=" '$(RuntimeIdentifier)' == 'win-x64' OR ('$(RuntimeIdentifier)' == '' AND $([MSBuild]::IsOSPlatform('Windows')) AND '$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)' == 'X64') ">
-    <Content Include="$(MSBuildThisFileDirectory)../runtimes/win-x64/native/e_sqlcipher.dll">
+    <Content Include="$(MSBuildThisFileDirectory)../../runtimes/win-x64/native/e_sqlcipher.dll">
       <Link>e_sqlcipher.dll</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
 
   <ItemGroup Condition=" '$(RuntimeIdentifier)' == 'win-arm64' OR ('$(RuntimeIdentifier)' == '' AND $([MSBuild]::IsOSPlatform('Windows')) AND '$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)' == 'Arm64') ">
-    <Content Include="$(MSBuildThisFileDirectory)../runtimes/win-arm64/native/e_sqlcipher.dll">
+    <Content Include="$(MSBuildThisFileDirectory)../../runtimes/win-arm64/native/e_sqlcipher.dll">
       <Link>e_sqlcipher.dll</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
