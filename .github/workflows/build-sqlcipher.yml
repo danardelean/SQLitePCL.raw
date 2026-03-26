@@ -79,7 +79,6 @@ jobs:
                     -DSQLITE_ENABLE_LOAD_EXTENSION \
                     -DSQLITE_ENABLE_PREUPDATE_HOOK \
                     -DSQLITE_ENABLE_SESSION \
-                    -DSQLITE_ENABLE_SNAPSHOT \
                     -DSQLITE_SOUNDEX \
                     -I$GITHUB_WORKSPACE/openssl-install/include \
                     -fPIC -O2" \
@@ -154,7 +153,6 @@ jobs:
                     -DSQLITE_ENABLE_LOAD_EXTENSION \
                     -DSQLITE_ENABLE_PREUPDATE_HOOK \
                     -DSQLITE_ENABLE_SESSION \
-                    -DSQLITE_ENABLE_SNAPSHOT \
                     -DSQLITE_SOUNDEX \
                     -fPIC -O2" \
             LDFLAGS="-arch ${{ matrix.target_arch }} -framework Security -framework CoreFoundation"
@@ -232,7 +230,7 @@ jobs:
         run: |
           cd sqlcipher-src
           nmake /f Makefile.msc TOP=. ^
-            "OPTS=-DSQLITE_HAS_CODEC -DSQLCIPHER_CRYPTO_OPENSSL -DSQLITE_TEMP_STORE=2 -DSQLITE_THREADSAFE=1 -DSQLITE_EXTRA_INIT=sqlcipher_extra_init -DSQLITE_EXTRA_SHUTDOWN=sqlcipher_extra_shutdown -DSQLITE_ENABLE_FTS3 -DSQLITE_ENABLE_FTS3_PARENTHESIS -DSQLITE_ENABLE_FTS4 -DSQLITE_ENABLE_FTS5 -DSQLITE_ENABLE_JSON1 -DSQLITE_ENABLE_RTREE -DSQLITE_ENABLE_GEOPOLY -DSQLITE_ENABLE_COLUMN_METADATA -DSQLITE_ENABLE_MATH_FUNCTIONS -DSQLITE_ENABLE_LOAD_EXTENSION -DSQLITE_ENABLE_PREUPDATE_HOOK -DSQLITE_ENABLE_SESSION -DSQLITE_ENABLE_SNAPSHOT -DSQLITE_SOUNDEX -DHAVE_STDINT_H=1 -I%VCPKG_INSTALLATION_ROOT%\installed\${{ matrix.vcpkg_triplet }}\include" ^
+            "OPTS=-DSQLITE_HAS_CODEC -DSQLCIPHER_CRYPTO_OPENSSL -DSQLITE_TEMP_STORE=2 -DSQLITE_THREADSAFE=1 -DSQLITE_EXTRA_INIT=sqlcipher_extra_init -DSQLITE_EXTRA_SHUTDOWN=sqlcipher_extra_shutdown -DSQLITE_ENABLE_FTS3 -DSQLITE_ENABLE_FTS3_PARENTHESIS -DSQLITE_ENABLE_FTS4 -DSQLITE_ENABLE_FTS5 -DSQLITE_ENABLE_JSON1 -DSQLITE_ENABLE_RTREE -DSQLITE_ENABLE_GEOPOLY -DSQLITE_ENABLE_COLUMN_METADATA -DSQLITE_ENABLE_MATH_FUNCTIONS -DSQLITE_ENABLE_LOAD_EXTENSION -DSQLITE_ENABLE_PREUPDATE_HOOK -DSQLITE_ENABLE_SESSION -DSQLITE_SOUNDEX -DHAVE_STDINT_H=1 -I%VCPKG_INSTALLATION_ROOT%\installed\${{ matrix.vcpkg_triplet }}\include" ^
             "LTLIBPATHS=/LIBPATH:%VCPKG_INSTALLATION_ROOT%\installed\${{ matrix.vcpkg_triplet }}\lib" ^
             "LTLIBS=libcrypto.lib libssl.lib advapi32.lib user32.lib gdi32.lib ws2_32.lib crypt32.lib" ^
             sqlite3.dll
@@ -300,7 +298,6 @@ jobs:
                     -DSQLITE_ENABLE_MATH_FUNCTIONS \
                     -DSQLITE_ENABLE_PREUPDATE_HOOK \
                     -DSQLITE_ENABLE_SESSION \
-                    -DSQLITE_ENABLE_SNAPSHOT \
                     -DSQLITE_SOUNDEX \
                     -fPIC -O2" \
             LDFLAGS="-isysroot $IOS_SDK -arch arm64 -miphoneos-version-min=$IOS_MIN_VERSION -framework Security -framework CoreFoundation"
@@ -309,6 +306,11 @@ jobs:
           mkdir -p ../build_output/ios-device
           cp .libs/libsqlite3.a ../build_output/ios-device/libe_sqlcipher.a || \
           cp libsqlite3.a ../build_output/ios-device/libe_sqlcipher.a
+
+          # Compile stubs for APIs removed in SQLite 3.46.0+ and merge into .a
+          $CC -isysroot $IOS_SDK -arch arm64 -miphoneos-version-min=$IOS_MIN_VERSION \
+            -c $GITHUB_WORKSPACE/build_native/sqlite3_stubs.c -o ../build_output/ios-device/sqlite3_stubs.o
+          ar rcs ../build_output/ios-device/libe_sqlcipher.a ../build_output/ios-device/sqlite3_stubs.o
 
       - name: Build SQLCipher for iOS simulator (arm64)
         run: |
@@ -347,7 +349,6 @@ jobs:
                     -DSQLITE_ENABLE_MATH_FUNCTIONS \
                     -DSQLITE_ENABLE_PREUPDATE_HOOK \
                     -DSQLITE_ENABLE_SESSION \
-                    -DSQLITE_ENABLE_SNAPSHOT \
                     -DSQLITE_SOUNDEX \
                     -fPIC -O2" \
             LDFLAGS="-isysroot $SIM_SDK -arch arm64 -miphonesimulator-version-min=$IOS_MIN_VERSION -framework Security -framework CoreFoundation"
@@ -356,6 +357,11 @@ jobs:
           mkdir -p ../build_output/ios-simulator-arm64
           cp .libs/libsqlite3.a ../build_output/ios-simulator-arm64/libe_sqlcipher.a || \
           cp libsqlite3.a ../build_output/ios-simulator-arm64/libe_sqlcipher.a
+
+          # Compile stubs for APIs removed in SQLite 3.46.0+ and merge into .a
+          $CC -isysroot $SIM_SDK -arch arm64 -miphonesimulator-version-min=$IOS_MIN_VERSION \
+            -c $GITHUB_WORKSPACE/build_native/sqlite3_stubs.c -o ../build_output/ios-simulator-arm64/sqlite3_stubs.o
+          ar rcs ../build_output/ios-simulator-arm64/libe_sqlcipher.a ../build_output/ios-simulator-arm64/sqlite3_stubs.o
 
       - name: Build SQLCipher for iOS simulator (x86_64)
         run: |
@@ -394,7 +400,6 @@ jobs:
                     -DSQLITE_ENABLE_MATH_FUNCTIONS \
                     -DSQLITE_ENABLE_PREUPDATE_HOOK \
                     -DSQLITE_ENABLE_SESSION \
-                    -DSQLITE_ENABLE_SNAPSHOT \
                     -DSQLITE_SOUNDEX \
                     -fPIC -O2" \
             LDFLAGS="-isysroot $SIM_SDK -arch x86_64 -miphonesimulator-version-min=$IOS_MIN_VERSION -framework Security -framework CoreFoundation"
@@ -403,6 +408,11 @@ jobs:
           mkdir -p ../build_output/ios-simulator-x64
           cp .libs/libsqlite3.a ../build_output/ios-simulator-x64/libe_sqlcipher.a || \
           cp libsqlite3.a ../build_output/ios-simulator-x64/libe_sqlcipher.a
+
+          # Compile stubs for APIs removed in SQLite 3.46.0+ and merge into .a
+          $CC -isysroot $SIM_SDK -arch x86_64 -miphonesimulator-version-min=$IOS_MIN_VERSION \
+            -c $GITHUB_WORKSPACE/build_native/sqlite3_stubs.c -o ../build_output/ios-simulator-x64/sqlite3_stubs.o
+          ar rcs ../build_output/ios-simulator-x64/libe_sqlcipher.a ../build_output/ios-simulator-x64/sqlite3_stubs.o
 
       - name: Create fat simulator library and XCFramework
         run: |
@@ -544,7 +554,6 @@ jobs:
                     -DSQLITE_ENABLE_MATH_FUNCTIONS \
                     -DSQLITE_ENABLE_PREUPDATE_HOOK \
                     -DSQLITE_ENABLE_SESSION \
-                    -DSQLITE_ENABLE_SNAPSHOT \
                     -DSQLITE_SOUNDEX \
                     -I$GITHUB_WORKSPACE/openssl-install/include \
                     -fPIC -O2" \
@@ -650,7 +659,6 @@ jobs:
                     -DSQLITE_ENABLE_LOAD_EXTENSION \
                     -DSQLITE_ENABLE_PREUPDATE_HOOK \
                     -DSQLITE_ENABLE_SESSION \
-                    -DSQLITE_ENABLE_SNAPSHOT \
                     -DSQLITE_SOUNDEX \
                     -fPIC -O2"
           make -j$(nproc)
