@@ -40,12 +40,12 @@
     <file src="e_sqlcipher.native.targets" target="buildTransitive/e_sqlcipher.targets" />
 
     <!-- .NET MAUI / Android targets -->
-    <file src="e_sqlcipher.native.android.targets" target="build/net10.0-android36.1/e_sqlcipher.targets" />
-    <file src="e_sqlcipher.native.android.targets" target="buildTransitive/net10.0-android36.1/e_sqlcipher.targets" />
+    <file src="e_sqlcipher.native.android.targets" target="build/net10.0-android/e_sqlcipher.targets" />
+    <file src="e_sqlcipher.native.android.targets" target="buildTransitive/net10.0-android/e_sqlcipher.targets" />
 
     <!-- .NET MAUI / iOS targets -->
-    <file src="e_sqlcipher.native.ios.targets" target="build/net10.0-ios26.2/e_sqlcipher.targets" />
-    <file src="e_sqlcipher.native.ios.targets" target="buildTransitive/net10.0-ios26.2/e_sqlcipher.targets" />
+    <file src="e_sqlcipher.native.ios.targets" target="build/net10.0-ios/e_sqlcipher.targets" />
+    <file src="e_sqlcipher.native.ios.targets" target="buildTransitive/net10.0-ios/e_sqlcipher.targets" />
 
     <file src="README.md" target="README.md" />
   </files>
