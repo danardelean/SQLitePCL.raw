@@ -542,7 +542,7 @@ jobs:
                     -DSQLITE_SOUNDEX \
                     -I$GITHUB_WORKSPACE/openssl-install/include \
                     -fPIC -O2" \
-            LDFLAGS="-L$GITHUB_WORKSPACE/openssl-install/lib -L$GITHUB_WORKSPACE/openssl-install/lib64 -lcrypto -llog"
+            LDFLAGS="-L$GITHUB_WORKSPACE/openssl-install/lib -L$GITHUB_WORKSPACE/openssl-install/lib64 -lcrypto -llog -Wl,-z,max-page-size=16384"
           make -j$(nproc)
 
           mkdir -p ../native/${{ matrix.rid }}
@@ -550,9 +550,13 @@ jobs:
           cp libsqlite3.so ../native/${{ matrix.rid }}/libe_sqlcipher.so
           $STRIP ../native/${{ matrix.rid }}/libe_sqlcipher.so
 
-          # Verify
+          # Verify SQLCipher symbols
           $TOOLCHAIN/bin/llvm-nm -D ../native/${{ matrix.rid }}/libe_sqlcipher.so | grep -q sqlite3_key
           echo "✓ sqlite3_key symbol found for ${{ matrix.abi }}"
+
+          # Verify 16KB page alignment (required by Android 16+)
+          $TOOLCHAIN/bin/llvm-readelf -l ../native/${{ matrix.rid }}/libe_sqlcipher.so | grep -E "LOAD.*0x4000"
+          echo "✓ 16KB page alignment verified for ${{ matrix.abi }}"
 
       - uses: actions/upload-artifact@v4
         with:
