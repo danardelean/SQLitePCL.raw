@@ -633,53 +633,6 @@ jobs:
             -p:Version=${{ env.SQLCIPHER_VERSION }} \
             -o ../nupkgs
 
-      - name: Build plain e_sqlite3 native library (for SourceGear.sqlite3 test dependency)
-        run: |
-          # Build SQLite from sqlcipher source WITHOUT encryption flags = plain SQLite
-          # Only need linux-x64 for the CI test runner
-          sudo apt-get update && sudo apt-get install -y build-essential tcl
-          git clone --depth 1 --branch v${{ env.SQLCIPHER_VERSION }} https://github.com/sqlcipher/sqlcipher.git sqlcipher-plain
-          cd sqlcipher-plain
-          ./configure \
-            --with-tempstore=yes \
-            --disable-tcl \
-            --enable-shared \
-            --disable-static \
-            CFLAGS="-DSQLITE_TEMP_STORE=2 \
-                    -DSQLITE_THREADSAFE=1 \
-                    -DSQLITE_ENABLE_FTS3 \
-                    -DSQLITE_ENABLE_FTS3_PARENTHESIS \
-                    -DSQLITE_ENABLE_FTS4 \
-                    -DSQLITE_ENABLE_FTS5 \
-                    -DSQLITE_ENABLE_JSON1 \
-                    -DSQLITE_ENABLE_RTREE \
-                    -DSQLITE_ENABLE_GEOPOLY \
-                    -DSQLITE_ENABLE_COLUMN_METADATA \
-                    -DSQLITE_ENABLE_MATH_FUNCTIONS \
-                    -DSQLITE_ENABLE_LOAD_EXTENSION \
-                    -DSQLITE_ENABLE_PREUPDATE_HOOK \
-                    -DSQLITE_ENABLE_SESSION \
-                    -DSQLITE_SOUNDEX \
-                    -fPIC -O2"
-          make -j$(nproc)
-
-          # Package as libe_sqlite3.so
-          mkdir -p ../native-e_sqlite3/linux-x64
-          cp .libs/libsqlite3.so.* ../native-e_sqlite3/linux-x64/libe_sqlite3.so || \
-          cp libsqlite3.so ../native-e_sqlite3/linux-x64/libe_sqlite3.so
-          strip ../native-e_sqlite3/linux-x64/libe_sqlite3.so
-          echo "✓ Built plain e_sqlite3 for linux-x64"
-
-      - name: Pack SourceGear.sqlite3 NuGet package (local, for testing)
-        run: |
-          cd build_native
-          dotnet pack sourcegear.sqlite3.csproj -c Release \
-            -p:NuspecFile=sourcegear.sqlite3.nuspec \
-            -p:Version=3.51.3 \
-            -o ../nupkgs
-          echo "=== SourceGear.sqlite3 package ==="
-          ls -lh ../nupkgs/SourceGear.sqlite3*
-
       - name: Install T4
         run: |
           dotnet tool install --global dotnet-t4 || dotnet tool install --global dotnet-t4 --version 2.3.1
@@ -699,7 +652,7 @@ jobs:
           cd version_stamp && dotnet run .. && cd ..
           # Generate providers (needs t4)
           cd gen_providers && dotnet run && cd ..
-          # Clean old SQLitePCLRaw packages but preserve native packages (e_sqlcipher, SourceGear.sqlite3)
+          # Clean old SQLitePCLRaw packages but preserve the native e_sqlcipher package
           rm -f nupkgs/SQLitePCLRaw.*.nupkg
           mkdir -p nupkgs
           # Pack all provider/core packages

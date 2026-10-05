@@ -26,7 +26,8 @@ public static class gen
 
     public const int MAJOR_VERSION = 3;
     public const int MINOR_VERSION = 0;
-    public const int PATCH_VERSION = 3;
+    public const int PATCH_VERSION = 5;
+    public const int OFFICIAL_BUILD_NUMBER = 3129;
 
     // a version string with a -pre-timestamp in it
     public static string NUSPEC_VERSION_PRE_TIMESTAMP = string.Format("{0}.{1}.{2}-pre{3}",
@@ -51,8 +52,8 @@ public static class gen
         );
 
     // keep one of the following 2:
-    public static string NUSPEC_VERSION = NUSPEC_VERSION_PRE_TIMESTAMP;
-    //public static string NUSPEC_VERSION = NUSPEC_VERSION_RELEASE;
+    //public static string NUSPEC_VERSION = NUSPEC_VERSION_PRE_TIMESTAMP;
+    public static string NUSPEC_VERSION = NUSPEC_VERSION_RELEASE;
 
     // or maaaaybe this one, but probably not:
     //public static string NUSPEC_VERSION = NUSPEC_VERSION_PRE;
@@ -61,7 +62,10 @@ public static class gen
         MAJOR_VERSION,
         MINOR_VERSION,
         PATCH_VERSION,
-        (int)((DateTime.Now - new DateTime(2018, 1, 1)).TotalDays)
+        // Fork: the e_sqlcipher packages run against the official SQLitePCLRaw.core from nuget.org,
+        // so they must not reference a higher assembly version than the one it ships with.
+        // Keep this equal to the build number of the official release (3.0.5 -> 3129).
+        OFFICIAL_BUILD_NUMBER
         );
 
     private const string NUSPEC_RELEASE_NOTES = "TODO url";
@@ -104,8 +108,8 @@ public static class gen
 
             f.WriteElementString("src_path", "$([System.IO.Path]::Combine($(MSBuildThisFileDirectory), 'src'))");
             f.WriteElementString("pkg_version_for_testing", "$(Version)");
-            f.WriteElementString("lib_e_sqlite3_package_reference_version", "3.51.3");
-            f.WriteElementString("see_pkg_version_for_testing", "3.51.3");
+            f.WriteElementString("lib_e_sqlite3_package_reference_version", "3.53.4");
+            f.WriteElementString("see_pkg_version_for_testing", "3.53.4");
             f.WriteElementString("depversion_xunit", "2.6.3");
             f.WriteElementString("depversion_xunit_runner_visualstudio", "2.5.5");
             f.WriteElementString("depversion_microsoft_net_test_sdk", "17.8.0");

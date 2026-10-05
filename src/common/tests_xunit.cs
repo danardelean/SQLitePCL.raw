@@ -349,6 +349,188 @@ namespace SQLitePCL.Tests
             }
         }
 
+        // Audit #7: GetOrCreateExtra used to allow two threads racing the first
+        // call to both create T, with one quietly winning extra and the loser's
+        // instance silently leaking.  The patched CAS path guarantees a single
+        // shared instance is returned to all callers.
+        sealed class extra_marker : IDisposable
+        {
+            public bool disposed;
+            public void Dispose() { disposed = true; }
+        }
+
+        [Fact]
+        public void test_get_or_create_extra_returns_same_instance_under_contention()
+        {
+            using (var db = ugly.open(":memory:"))
+            {
+                var n_threads = Math.Max(4, Environment.ProcessorCount);
+                var instances = new extra_marker[n_threads];
+                var threads = new System.Threading.Thread[n_threads];
+                var start = new System.Threading.ManualResetEventSlim();
+                for (var i = 0; i < n_threads; i++)
+                {
+                    var idx = i;
+                    threads[i] = new System.Threading.Thread(() =>
+                    {
+                        start.Wait();
+                        instances[idx] = db.GetOrCreateExtra(() => new extra_marker());
+                    });
+                    threads[i].Start();
+                }
+                start.Set();
+                foreach (var t in threads) t.Join();
+
+                Assert.NotNull(instances[0]);
+                for (var i = 1; i < n_threads; i++)
+                {
+                    Assert.Same(instances[0], instances[i]);
+                }
+            }
+        }
+
+        // Regression test for the ArgumentOutOfRangeException variant of the
+        // long-standing prepare-race bug class (see issues #108, #321, #430,
+        // #479, #588). The provider's span overload of sqlite3_prepare_v2
+        // computes `(int)(p_tail - p_sql)` and uses it as a Slice start.
+        //
+        // On SQLITE_MISUSE paths (unsafe db handle, null zSql), native returns
+        // without writing *pzTail, leaving the caller's `out byte* p_tail`
+        // local at its .locals-init default of 0. For a non-empty SQL input,
+        // p_sql is a real non-null pointer, so `p_tail - p_sql` is a 64-bit
+        // signed difference that truncates to an int whose sign depends on
+        // bit 31 of the low 32 bits of p_sql. When bit 31 is clear (the sql
+        // buffer sits at a typical high managed-heap address on x64), the
+        // cast produces a large negative int, and `sql.Slice(negative, ...)`
+        // throws ArgumentOutOfRangeException instead of cleanly returning
+        // the error rc to the caller.
+        //
+        // We trigger the unsafe-db path deterministically via manual_close_v2,
+        // and we force the sql buffer into the bit-31-clear address range by
+        // growing the heap with a rolling allocator before each iteration.
+        // On a fresh process the heap can start either side of 2^31, so
+        // without the rolling growth the test is stochastic. With it, every
+        // iteration fires the bug on unpatched builds.
+        //
+        // The patched provider bounds-checks p_tail against
+        // [p_sql, p_sql + sql.Length] before computing the slice, so this
+        // returns rc=SQLITE_MISUSE + tail=Empty instead of throwing.
+        [Fact]
+        public void test_prepare_v2_span_tolerates_uninitialised_pzTail()
+        {
+            var rolling = new byte[256][];
+            var rnd = new Random(42);
+            for (var i = 0; i < 512; i++)
+            {
+                rolling[i % rolling.Length] = new byte[rnd.Next(1024, 128 * 1024)];
+
+                var db = ugly.open(":memory:");
+                db.manual_close_v2();
+                try
+                {
+                    var sql = u.to_utf8("SELECT 1;");
+
+                    int rc = raw.sqlite3_prepare_v2(db, sql.AsSpan(), out var stmt, out var tail);
+
+                    Assert.Equal(raw.SQLITE_MISUSE, rc);
+                    Assert.True(tail.IsEmpty);
+                    stmt?.Dispose();
+                }
+                finally
+                {
+                    db.Dispose();
+                }
+            }
+            GC.KeepAlive(rolling);
+        }
+
+        [Fact]
+        public void test_prepare_v3_span_tolerates_uninitialised_pzTail()
+        {
+            var rolling = new byte[256][];
+            var rnd = new Random(42);
+            for (var i = 0; i < 512; i++)
+            {
+                rolling[i % rolling.Length] = new byte[rnd.Next(1024, 128 * 1024)];
+
+                var db = ugly.open(":memory:");
+                db.manual_close_v2();
+                try
+                {
+                    var sql = u.to_utf8("SELECT 1;");
+
+                    int rc = raw.sqlite3_prepare_v3(db, sql.AsSpan(), 0, out var stmt, out var tail);
+
+                    Assert.Equal(raw.SQLITE_MISUSE, rc);
+                    Assert.True(tail.IsEmpty);
+                    stmt?.Dispose();
+                }
+                finally
+                {
+                    db.Dispose();
+                }
+            }
+            GC.KeepAlive(rolling);
+        }
+
+        // Audit #1: the string overloads of prepare_v2/v3 used to throw
+        // ArgumentOutOfRangeException on the same MISUSE path because they
+        // unconditionally sliced the (now empty) tail span.  These tests
+        // assert they return rc cleanly with an empty tail string instead.
+        [Fact]
+        public void test_prepare_v2_string_tolerates_uninitialised_pzTail()
+        {
+            var rolling = new byte[256][];
+            var rnd = new Random(42);
+            for (var i = 0; i < 512; i++)
+            {
+                rolling[i % rolling.Length] = new byte[rnd.Next(1024, 128 * 1024)];
+
+                var db = ugly.open(":memory:");
+                db.manual_close_v2();
+                try
+                {
+                    int rc = raw.sqlite3_prepare_v2(db, "SELECT 1;", out var stmt, out string tail);
+
+                    Assert.Equal(raw.SQLITE_MISUSE, rc);
+                    Assert.Equal("", tail);
+                    stmt?.Dispose();
+                }
+                finally
+                {
+                    db.Dispose();
+                }
+            }
+            GC.KeepAlive(rolling);
+        }
+
+        [Fact]
+        public void test_prepare_v3_string_tolerates_uninitialised_pzTail()
+        {
+            var rolling = new byte[256][];
+            var rnd = new Random(42);
+            for (var i = 0; i < 512; i++)
+            {
+                rolling[i % rolling.Length] = new byte[rnd.Next(1024, 128 * 1024)];
+
+                var db = ugly.open(":memory:");
+                db.manual_close_v2();
+                try
+                {
+                    int rc = raw.sqlite3_prepare_v3(db, "SELECT 1;", 0, out var stmt, out string tail);
+
+                    Assert.Equal(raw.SQLITE_MISUSE, rc);
+                    Assert.Equal("", tail);
+                    stmt?.Dispose();
+                }
+                finally
+                {
+                    db.Dispose();
+                }
+            }
+            GC.KeepAlive(rolling);
+        }
+
         [Fact]
         public void test_bind_parameter_index()
         {
