@@ -83,7 +83,8 @@ jobs:
                     -DSQLITE_SOUNDEX \
                     -I$GITHUB_WORKSPACE/openssl-install/include \
                     -fPIC -O2" \
-            LDFLAGS="-L$GITHUB_WORKSPACE/openssl-install/lib -L$GITHUB_WORKSPACE/openssl-install/lib64 -lcrypto -lpthread -ldl"
+            LDFLAGS="-L$GITHUB_WORKSPACE/openssl-install/lib -L$GITHUB_WORKSPACE/openssl-install/lib64" \
+            LIBS="-lcrypto -lpthread -ldl"
           make -j$(nproc)
 
       - name: Package native library
@@ -95,6 +96,13 @@ jobs:
           # Verify SQLCipher symbols
           nm -D native/${{ matrix.rid }}/libe_sqlcipher.so | grep -q sqlite3_key
           echo "✓ sqlite3_key symbol found in ${{ matrix.rid }}"
+          # OpenSSL is linked statically: no OpenSSL symbol may be left undefined,
+          # otherwise loading fails at runtime unless the host already loaded libcrypto.
+          if nm -D --undefined-only native/${{ matrix.rid }}/libe_sqlcipher.so | grep -E "RAND_bytes|EVP_|OPENSSL_"; then
+            echo "Unresolved OpenSSL symbols in ${{ matrix.rid }}" >&2
+            exit 1
+          fi
+          echo "✓ no unresolved OpenSSL symbols in ${{ matrix.rid }}"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -762,14 +770,16 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      - name: Install iOS workload
-        run: dotnet workload install ios
-
       - name: Download packages
         uses: actions/download-artifact@v4
         with:
           name: nupkg-all
           path: nupkgs
+
+      # The repo-root nuget.config lists the private SourceGear feeds, which answer
+      # 403 without SG_NUGET_TOKEN; use the test's own config (nuget.org + local only).
+      - name: Install iOS workload
+        run: dotnet workload install ios --configfile test_nupkgs/e_sqlcipher_tests/nuget.config
 
       - name: Run e_sqlcipher tests (iOS simulator)
         run: test_nupkgs/e_sqlcipher_tests/run_ios_simulator.sh ${{ env.SQLCIPHER_VERSION }}
