@@ -1,7 +1,7 @@
 /*
  * Stub implementations for SQLite APIs that were removed in SQLite 3.46.0.
  *
- * SQLCipher 4.14.0 is based on SQLite 3.51.3 which no longer includes the
+ * SQLCipher 4.19.0 is based on SQLite 3.53.4 which no longer includes the
  * experimental snapshot APIs.  SQLitePCLRaw's provider still declares
  * P/Invoke entries for them.  On desktop (dynamic linking) missing symbols
  * only fail at runtime if called.  On iOS (static linking via __Internal)

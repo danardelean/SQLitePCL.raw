@@ -1,7 +1,7 @@
 # e_sqlcipher - Native SQLCipher Builds
 
-This package contains native builds of [SQLCipher](https://github.com/sqlcipher/sqlcipher) 4.14.0
-(based on SQLite 3.51.3) for use with `SQLitePCLRaw.provider.e_sqlcipher`.
+This package contains native builds of [SQLCipher](https://github.com/sqlcipher/sqlcipher) 4.19.0
+(based on SQLite 3.53.4) for use with `SQLitePCLRaw.provider.e_sqlcipher`.
 
 ## Platforms
 
@@ -47,7 +47,7 @@ Publish only these packages to the private feed:
 
 | Package | Version |
 |---------|---------|
-| `e_sqlcipher` | 4.14.0 |
+| `e_sqlcipher` | 4.19.0 |
 | `SQLitePCLRaw.provider.e_sqlcipher` | same as upstream (3.0.5) |
 | `SQLitePCLRaw.config.e_sqlcipher` | same as upstream (3.0.5) |
 | `SQLitePCLRaw.bundle_e_sqlcipher` | same as upstream (3.0.5) |

@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
 
 env:
-  SQLCIPHER_VERSION: "4.14.0"
+  SQLCIPHER_VERSION: "4.19.0"
   OPENSSL_VERSION: "3.4.1"
 
 jobs:

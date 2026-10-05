@@ -19,7 +19,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-SQLCIPHER_VERSION="4.14.0"
+SQLCIPHER_VERSION="4.19.0"
 SQLCIPHER_SRC_DIR="${REPO_ROOT}/sqlcipher-src"
 OUTPUT_DIR="${REPO_ROOT}/native"
 OPENSSL_VERSION="3.4.1"
