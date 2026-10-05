@@ -764,7 +764,8 @@ jobs:
   # The only place where the static iOS library is actually linked and executed.
   test-ios:
     needs: pack-nuget
-    runs-on: macos-26
+    # The current .NET for iOS workload (27.0) requires Xcode 27, which macos-26 does not ship.
+    runs-on: xcode-27
     steps:
       - uses: actions/checkout@v4
 
@@ -800,14 +801,15 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      - name: Install Android workload
-        run: dotnet workload install android
-
       - name: Download packages
         uses: actions/download-artifact@v4
         with:
           name: nupkg-all
           path: nupkgs
+
+      # Same as test-ios: avoid the private SourceGear feeds of the repo-root nuget.config.
+      - name: Install Android workload
+        run: dotnet workload install android --configfile test_nupkgs/e_sqlcipher_tests/nuget.config
 
       - name: Install Android SDK dependencies
         run: |
