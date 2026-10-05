@@ -473,13 +473,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Android NDK
-        uses: android-actions/setup-android@v3
-        with:
-          cmdline-tools-version: 11076708
-
+      # The ubuntu-24.04 runner image already ships the Android SDK
+      # (ANDROID_SDK_ROOT, cmdline-tools/latest), so only the NDK is installed.
       - name: Install NDK
-        run: sdkmanager "ndk;27.2.12479018"
+        run: |
+          yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" "ndk;27.2.12479018"
 
       - name: Clone SQLCipher
         run: git clone --depth 1 --branch v${{ env.SQLCIPHER_VERSION }} https://github.com/sqlcipher/sqlcipher.git sqlcipher-src
