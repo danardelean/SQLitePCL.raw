@@ -9,6 +9,7 @@ on:
       - 'src/**'
       - 'build/**'
       - 'gen_providers/**'
+      - 'test_nupkgs/e_sqlcipher_tests/**'
   pull_request:
     branches: [ main ]
   workflow_dispatch:
@@ -707,3 +708,110 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: nupkgs/*.nupkg
+
+  # ===========================================================================
+  # Runtime tests of the packed e_sqlcipher packages (test_nupkgs/e_sqlcipher_tests).
+  # They consume the nupkg artifact like an application would: the e_sqlcipher
+  # packages from the artifact, SQLitePCLRaw.core and the rest from nuget.org.
+  # A failure here does not remove the artifact, it flags it as not validated.
+  # ===========================================================================
+  test-desktop:
+    needs: pack-nuget
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-2025
+            rid: win-x64
+          - os: windows-11-arm
+            rid: win-arm64
+          - os: ubuntu-24.04
+            rid: linux-x64
+          - os: ubuntu-24.04-arm
+            rid: linux-arm64
+          - os: macos-15
+            rid: osx-arm64
+          - os: macos-15-intel
+            rid: osx-x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          name: nupkg-all
+          path: nupkgs
+
+      - name: Run e_sqlcipher tests (${{ matrix.rid }})
+        run: dotnet run --project test_nupkgs/e_sqlcipher_tests/desktop -p:ExpectedSqlcipherVersion=${{ env.SQLCIPHER_VERSION }}
+
+  # The only place where the static iOS library is actually linked and executed.
+  test-ios:
+    needs: pack-nuget
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Install iOS workload
+        run: dotnet workload install ios
+
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          name: nupkg-all
+          path: nupkgs
+
+      - name: Run e_sqlcipher tests (iOS simulator)
+        run: test_nupkgs/e_sqlcipher_tests/run_ios_simulator.sh ${{ env.SQLCIPHER_VERSION }}
+
+  # Hosted runners only offer an x86_64 emulator: this exercises the android-x64
+  # library.  Run run_android.sh against an arm64 device or emulator before a release.
+  test-android:
+    needs: pack-nuget
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Install Android workload
+        run: dotnet workload install android
+
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          name: nupkg-all
+          path: nupkgs
+
+      - name: Install Android SDK dependencies
+        run: |
+          dotnet build test_nupkgs/e_sqlcipher_tests/android -t:InstallAndroidDependencies \
+            -p:AndroidSdkDirectory="$ANDROID_HOME" -p:AcceptAndroidSDKLicenses=True
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Run e_sqlcipher tests (Android emulator)
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          disable-animations: true
+          script: test_nupkgs/e_sqlcipher_tests/run_android.sh ${{ env.SQLCIPHER_VERSION }}

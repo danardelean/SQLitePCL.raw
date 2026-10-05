@@ -1,0 +1,25 @@
+<Project>
+
+  <!-- Shared by the desktop, iOS and Android heads of the e_sqlcipher tests. -->
+
+  <PropertyGroup>
+    <RootNamespace>e_sqlcipher_tests</RootNamespace>
+    <Nullable>disable</Nullable>
+    <!-- CI passes -p:ExpectedSqlcipherVersion=x.y.z so a stale native library is caught. -->
+    <ExpectedSqlcipherVersion Condition=" '$(ExpectedSqlcipherVersion)' == '' "></ExpectedSqlcipherVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)SqlcipherChecks.cs" Link="shared\SqlcipherChecks.cs" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)fixtures\sqlcipher_4_14_0.db" LogicalName="sqlcipher_4_14_0.db" />
+    <AssemblyMetadata Include="ExpectedSqlcipherVersion" Value="$(ExpectedSqlcipherVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="sqlitepclraw.bundle_e_sqlcipher" Version="$(pkg_version_for_testing)" />
+    <PackageReference Include="sqlitepclraw.ugly" Version="$(pkg_version_for_testing)" />
+    <!-- The stack real applications use: built against SQLitePCLRaw.core 2.x, running on 3.x. -->
+    <PackageReference Include="Microsoft.Data.Sqlite.Core" Version="10.0.10" />
+  </ItemGroup>
+
+</Project>
