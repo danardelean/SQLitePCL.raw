@@ -83,8 +83,7 @@ jobs:
                     -DSQLITE_SOUNDEX \
                     -I$GITHUB_WORKSPACE/openssl-install/include \
                     -fPIC -O2" \
-            LDFLAGS="-L$GITHUB_WORKSPACE/openssl-install/lib -L$GITHUB_WORKSPACE/openssl-install/lib64" \
-            LIBS="-lcrypto -lpthread -ldl"
+            LDFLAGS="-L$GITHUB_WORKSPACE/openssl-install/lib -L$GITHUB_WORKSPACE/openssl-install/lib64 -lcrypto -lpthread -ldl"
           make -j$(nproc)
 
       - name: Package native library
@@ -623,6 +622,10 @@ jobs:
             if [ -d "native-artifacts/native-$rid" ]; then
               mkdir -p "native/$rid"
               cp -r "native-artifacts/native-$rid/"* "native/$rid/"
+              # Every file must come from this run's artifact, not from a binary tracked in git
+              for f in "native-artifacts/native-$rid/"*; do
+                cmp "$f" "native/$rid/$(basename "$f")"
+              done
             fi
           done
           # iOS static libs and xcframework (uploaded as single native-ios artifact with subdirectories)
