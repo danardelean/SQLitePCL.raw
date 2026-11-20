@@ -780,13 +780,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # The workload wants the matching Xcode 27.x: use the newest one on the image.
-      - name: Select Xcode
-        run: |
-          XCODE=$(ls -d /Applications/Xcode_27*.app | sort -V | tail -1)
-          sudo xcode-select -s "$XCODE"
-          xcodebuild -version
-
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
@@ -802,6 +795,18 @@ jobs:
       # 403 without SG_NUGET_TOKEN; use the test's own config (nuget.org + local only).
       - name: Install iOS workload
         run: dotnet workload install ios --configfile test_nupkgs/e_sqlcipher_tests/nuget.config
+
+      # The iOS workload requires one exact Xcode version (27.2.x for
+      # Microsoft.iOS.Sdk.net11.0_27.2), while the image may also carry a newer
+      # one: select the Xcode that matches the installed SDK pack.
+      - name: Select the Xcode the iOS workload requires
+        run: |
+          PACK=$(ls -d "$DOTNET_ROOT"/packs/Microsoft.iOS.Sdk.net11.0_* | sort -V | tail -1)
+          XCODE_VERSION=${PACK##*_}
+          XCODE=$(ls -d /Applications/Xcode_${XCODE_VERSION}*.app | sort -V | tail -1)
+          echo "iOS SDK pack $PACK needs Xcode $XCODE_VERSION: using $XCODE"
+          sudo xcode-select -s "$XCODE"
+          xcodebuild -version
 
       - name: Run e_sqlcipher tests (iOS simulator)
         run: test_nupkgs/e_sqlcipher_tests/run_ios_simulator.sh ${{ env.SQLCIPHER_VERSION }} ${{ env.SQLITE_VERSION }}
