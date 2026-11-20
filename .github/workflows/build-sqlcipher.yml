@@ -2,7 +2,7 @@ name: Build SQLCipher Native Libraries & NuGet Packages
 
 on:
   push:
-    branches: [ main, feature/sqlcipher-* ]
+    branches: [ main, develop, "feature/**" ]
     paths:
       - 'build_native/**'
       - '.github/workflows/build-sqlcipher.yml'
