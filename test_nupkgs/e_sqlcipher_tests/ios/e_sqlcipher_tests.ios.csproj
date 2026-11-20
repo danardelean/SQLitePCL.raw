@@ -2,13 +2,19 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net10.0-ios</TargetFramework>
+    <!-- .NET 11 runs mobile apps on CoreCLR; say so explicitly so the tests keep
+         covering CoreCLR even if the workload default changes. -->
+    <UseMonoRuntime>false</UseMonoRuntime>
+    <TargetFramework>net11.0-ios</TargetFramework>
     <RuntimeIdentifier Condition=" '$(RuntimeIdentifier)' == '' ">iossimulator-arm64</RuntimeIdentifier>
     <SupportedOSPlatformVersion>15.0</SupportedOSPlatformVersion>
     <ApplicationId>com.sqlitepclraw.e-sqlcipher-tests</ApplicationId>
     <ApplicationTitle>e_sqlcipher tests</ApplicationTitle>
     <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
     <ApplicationVersion>1</ApplicationVersion>
+    <!-- The app has no UI and exits from Main before UIKit starts, so it needs no
+         scene manifest (required by the iOS 27 SDK for apps that do show UI). -->
+    <ValidateSceneManifest>false</ValidateSceneManifest>
   </PropertyGroup>
 
   <Import Project="..\shared\Shared.props" />

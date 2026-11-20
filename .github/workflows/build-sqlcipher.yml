@@ -2,7 +2,7 @@ name: Build SQLCipher Native Libraries & NuGet Packages
 
 on:
   push:
-    branches: [ main, feature/sqlcipher-* ]
+    branches: [ main, develop, "feature/**" ]
     paths:
       - 'build_native/**'
       - '.github/workflows/build-sqlcipher.yml'
@@ -10,13 +10,18 @@ on:
       - 'build/**'
       - 'gen_providers/**'
       - 'test_nupkgs/e_sqlcipher_tests/**'
+      - 'test_nupkgs/e_sqlcipher/**'
+      - 'version_stamp/**'
+      - 'global.json'
   pull_request:
     branches: [ main ]
   workflow_dispatch:
 
 env:
-  SQLCIPHER_VERSION: "4.19.0"
-  OPENSSL_VERSION: "3.4.1"
+  SQLCIPHER_VERSION: "4.20.0"
+  # The SQLite version SQLCipher 4.20.0 is based on; the tests check sqlite_version() against it.
+  SQLITE_VERSION: "3.54.1"
+  OPENSSL_VERSION: "3.5.9"
 
 jobs:
   # ===========================================================================
@@ -457,6 +462,8 @@ jobs:
   # ===========================================================================
   # Android builds (arm64-v8a, armeabi-v7a, x86_64) — OpenSSL via NDK
   # ===========================================================================
+  # NDK and API level follow dotnet/android for .NET 11 (Configuration.props:
+  # NDK r28c 28.2.13676358, AndroidMinimumDotNetApiLevel 24).
   build-android:
     runs-on: ubuntu-24.04
     strategy:
@@ -466,17 +473,17 @@ jobs:
             arch: aarch64
             host: aarch64-linux-android
             rid: android-arm64
-            api: 21
+            api: 24
           - abi: armeabi-v7a
             arch: arm
             host: armv7a-linux-androideabi
             rid: android-arm
-            api: 21
+            api: 24
           - abi: x86_64
             arch: x86_64
             host: x86_64-linux-android
             rid: android-x64
-            api: 21
+            api: 24
     steps:
       - uses: actions/checkout@v4
 
@@ -485,14 +492,14 @@ jobs:
       - name: Install NDK
         run: |
           yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
-          "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" "ndk;27.2.12479018"
+          "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" "ndk;28.2.13676358"
 
       - name: Clone SQLCipher
         run: git clone --depth 1 --branch v${{ env.SQLCIPHER_VERSION }} https://github.com/sqlcipher/sqlcipher.git sqlcipher-src
 
       - name: Build OpenSSL for Android (${{ matrix.abi }})
         run: |
-          export ANDROID_NDK_ROOT=$ANDROID_SDK_ROOT/ndk/27.2.12479018
+          export ANDROID_NDK_ROOT=$ANDROID_SDK_ROOT/ndk/28.2.13676358
           export PATH=$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH
 
           curl -sL "https://github.com/openssl/openssl/releases/download/openssl-${{ env.OPENSSL_VERSION }}/openssl-${{ env.OPENSSL_VERSION }}.tar.gz" -o openssl.tar.gz
@@ -517,7 +524,7 @@ jobs:
 
       - name: Build SQLCipher for Android (${{ matrix.abi }})
         run: |
-          export ANDROID_NDK_ROOT=$ANDROID_SDK_ROOT/ndk/27.2.12479018
+          export ANDROID_NDK_ROOT=$ANDROID_SDK_ROOT/ndk/28.2.13676358
           TOOLCHAIN=$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64
 
           # Determine the correct compiler prefix
@@ -597,8 +604,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.0.x'
-          dotnet-quality: 'preview'
+          dotnet-version: '11.0.x'
 
       - name: Download all native artifacts
         uses: actions/download-artifact@v4
@@ -694,14 +700,19 @@ jobs:
       - name: Run e_sqlite3 tests
         run: |
           echo "=== e_sqlite3 real_xunit ==="
-          dotnet test --framework=net10.0 test_nupkgs/e_sqlite3/real_xunit
+          dotnet test --framework=net11.0 test_nupkgs/e_sqlite3/real_xunit
           echo "=== e_sqlite3 fake_xunit ==="
-          dotnet run --framework=net10.0 --project test_nupkgs/e_sqlite3/fake_xunit
+          dotnet run --framework=net11.0 --project test_nupkgs/e_sqlite3/fake_xunit
+
+      - name: Run core test suite on e_sqlcipher
+        run: |
+          echo "=== e_sqlcipher fake_xunit (core suite + crypto tests) ==="
+          dotnet run --framework=net11.0 --project test_nupkgs/e_sqlcipher/fake_xunit
 
       - name: Run sqlite3 provider tests
         run: |
           echo "=== sqlite3 fake_xunit (uses system libsqlite3) ==="
-          dotnet run --framework=net10.0 --project test_nupkgs/sqlite3/fake_xunit
+          dotnet run --framework=net11.0 --project test_nupkgs/sqlite3/fake_xunit
 
       - name: List generated packages
         run: |
@@ -750,7 +761,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: '11.0.x'
 
       - name: Download packages
         uses: actions/download-artifact@v4
@@ -759,12 +770,12 @@ jobs:
           path: nupkgs
 
       - name: Run e_sqlcipher tests (${{ matrix.rid }})
-        run: dotnet run --project test_nupkgs/e_sqlcipher_tests/desktop -p:ExpectedSqlcipherVersion=${{ env.SQLCIPHER_VERSION }}
+        run: dotnet run --project test_nupkgs/e_sqlcipher_tests/desktop -p:ExpectedSqlcipherVersion=${{ env.SQLCIPHER_VERSION }} -p:ExpectedSqliteVersion=${{ env.SQLITE_VERSION }}
 
   # The only place where the static iOS library is actually linked and executed.
   test-ios:
     needs: pack-nuget
-    # The current .NET for iOS workload (27.0) requires Xcode 27, which macos-26 does not ship.
+    # The .NET 11 iOS workload (27.x) requires Xcode 27, which macos-26 does not ship.
     runs-on: xcode-27
     steps:
       - uses: actions/checkout@v4
@@ -772,7 +783,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: '11.0.x'
 
       - name: Download packages
         uses: actions/download-artifact@v4
@@ -785,11 +796,24 @@ jobs:
       - name: Install iOS workload
         run: dotnet workload install ios --configfile test_nupkgs/e_sqlcipher_tests/nuget.config
 
+      # The iOS workload requires one exact Xcode version (27.2.x for
+      # Microsoft.iOS.Sdk.net11.0_27.2), while the image may also carry a newer
+      # one: select the Xcode that matches the installed SDK pack.
+      - name: Select the Xcode the iOS workload requires
+        run: |
+          PACK=$(ls -d "$DOTNET_ROOT"/packs/Microsoft.iOS.Sdk.net11.0_* | sort -V | tail -1)
+          XCODE_VERSION=${PACK##*_}
+          XCODE=$(ls -d /Applications/Xcode_${XCODE_VERSION}*.app | sort -V | tail -1)
+          echo "iOS SDK pack $PACK needs Xcode $XCODE_VERSION: using $XCODE"
+          sudo xcode-select -s "$XCODE"
+          xcodebuild -version
+
       - name: Run e_sqlcipher tests (iOS simulator)
-        run: test_nupkgs/e_sqlcipher_tests/run_ios_simulator.sh ${{ env.SQLCIPHER_VERSION }}
+        run: test_nupkgs/e_sqlcipher_tests/run_ios_simulator.sh ${{ env.SQLCIPHER_VERSION }} ${{ env.SQLITE_VERSION }}
 
   # Hosted runners only offer an x86_64 emulator: this exercises the android-x64
-  # library.  Run run_android.sh against an arm64 device or emulator before a release.
+  # library.  Run run_android.sh against an arm64 device or emulator before a release
+  # (on an Apple Silicon Mac the Android Studio emulator is arm64).
   test-android:
     needs: pack-nuget
     runs-on: ubuntu-24.04
@@ -799,7 +823,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: '11.0.x'
 
       - name: Download packages
         uses: actions/download-artifact@v4
@@ -828,4 +852,4 @@ jobs:
           api-level: 34
           arch: x86_64
           disable-animations: true
-          script: test_nupkgs/e_sqlcipher_tests/run_android.sh ${{ env.SQLCIPHER_VERSION }}
+          script: test_nupkgs/e_sqlcipher_tests/run_android.sh ${{ env.SQLCIPHER_VERSION }} ${{ env.SQLITE_VERSION }}

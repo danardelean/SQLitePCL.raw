@@ -33,7 +33,7 @@ namespace e_sqlcipher_tests
             try
             {
                 string workDir = System.IO.Path.Combine(TargetContext.CacheDir.AbsolutePath, "e_sqlcipher_tests");
-                failed = SqlcipherChecks.Run(workDir, line =>
+                failed = TestRunner.Run(workDir, line =>
                 {
                     output.AppendLine(line);
                     Log.Info(Tag, line);
@@ -42,7 +42,7 @@ namespace e_sqlcipher_tests
             catch (Exception ex)
             {
                 failed = 1;
-                string line = SqlcipherChecks.FailedMarker + " (unhandled) " + ex;
+                string line = TestRunner.FailedMarker + " (unhandled) " + ex;
                 output.AppendLine(line);
                 Log.Error(Tag, line);
             }

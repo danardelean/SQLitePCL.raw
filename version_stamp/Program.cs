@@ -26,7 +26,7 @@ public static class gen
 
     public const int MAJOR_VERSION = 3;
     public const int MINOR_VERSION = 0;
-    public const int PATCH_VERSION = 5;
+    public const int PATCH_VERSION = 6;
     public const int OFFICIAL_BUILD_NUMBER = 3129;
 
     // a version string with a -pre-timestamp in it
@@ -51,9 +51,14 @@ public static class gen
         PATCH_VERSION
         );
 
+    // Fork: the net11 build changes SQLitePCLRaw.core and the providers too, so all
+    // packages carry this prerelease suffix to stay distinct from the official ones on nuget.org.
+    public const string FORK_SUFFIX = "net11";
+    public static string NUSPEC_VERSION_FORK = string.Format("{0}-{1}", NUSPEC_VERSION_RELEASE, FORK_SUFFIX);
+
     // keep one of the following 2:
     //public static string NUSPEC_VERSION = NUSPEC_VERSION_PRE_TIMESTAMP;
-    public static string NUSPEC_VERSION = NUSPEC_VERSION_RELEASE;
+    public static string NUSPEC_VERSION = NUSPEC_VERSION_FORK;
 
     // or maaaaybe this one, but probably not:
     //public static string NUSPEC_VERSION = NUSPEC_VERSION_PRE;
@@ -62,9 +67,8 @@ public static class gen
         MAJOR_VERSION,
         MINOR_VERSION,
         PATCH_VERSION,
-        // Fork: the e_sqlcipher packages run against the official SQLitePCLRaw.core from nuget.org,
-        // so they must not reference a higher assembly version than the one it ships with.
-        // Keep this equal to the build number of the official release (3.0.5 -> 3129).
+        // Fork: kept at the build number of the official 3.0.5 release (3129). Since the net11
+        // build ships its own SQLitePCLRaw.core, the patch number above already moves past it.
         OFFICIAL_BUILD_NUMBER
         );
 
@@ -108,17 +112,17 @@ public static class gen
 
             f.WriteElementString("src_path", "$([System.IO.Path]::Combine($(MSBuildThisFileDirectory), 'src'))");
             f.WriteElementString("pkg_version_for_testing", "$(Version)");
-            f.WriteElementString("lib_e_sqlite3_package_reference_version", "3.53.4");
+            f.WriteElementString("lib_e_sqlite3_package_reference_version", "3.54.1");
             f.WriteElementString("see_pkg_version_for_testing", "3.53.4");
             f.WriteElementString("depversion_xunit", "2.6.3");
             f.WriteElementString("depversion_xunit_runner_visualstudio", "2.5.5");
             f.WriteElementString("depversion_microsoft_net_test_sdk", "17.8.0");
-            f.WriteElementString("tfm_net", "net10.0");
+            f.WriteElementString("tfm_net", "net11.0");
             f.WriteElementString("tfm_framework", "net471");
-            f.WriteElementString("tfm_windows", "net10.0-windows");
-            f.WriteElementString("tfm_ios", "net10.0-ios26.2");
-            f.WriteElementString("tfm_tvos", "net10.0-tvos26.2");
-            f.WriteElementString("tfm_maccatalyst", "net10.0-maccatalyst26.2");
+            f.WriteElementString("tfm_windows", "net11.0-windows");
+            f.WriteElementString("tfm_ios", "net11.0-ios27.2");
+            f.WriteElementString("tfm_tvos", "net11.0-tvos27.2");
+            f.WriteElementString("tfm_maccatalyst", "net11.0-maccatalyst27.2");
 
             f.WriteComment("The NoNFloatUsing below is a workaround for xamarin/xamarin-macios/#14434");
             f.WriteElementString("NoNFloatUsing", "true");

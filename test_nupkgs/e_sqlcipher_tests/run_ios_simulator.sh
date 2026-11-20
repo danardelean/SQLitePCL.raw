@@ -3,13 +3,14 @@ set -euo pipefail
 
 # Builds the iOS head for the simulator, runs it and checks the result.
 #
-#   ./run_ios_simulator.sh [expected SQLCipher version]
+#   ./run_ios_simulator.sh [expected SQLCipher version] [expected SQLite version]
 #
 # Uses the booted simulator, or boots the one named in IOS_SIMULATOR
 # (default: the first available iPhone).
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 EXPECTED="${1:-}"
+EXPECTED_SQLITE="${2:-}"
 BUNDLE_ID="com.sqlitepclraw.e-sqlcipher-tests"
 ARCH="$(uname -m)"
 case "$ARCH" in
@@ -18,8 +19,8 @@ case "$ARCH" in
 esac
 LOG="$(mktemp -t e_sqlcipher_ios)"
 
-dotnet build "$DIR/ios" -c Debug -r "$RID" -p:ExpectedSqlcipherVersion="$EXPECTED"
-APP="$DIR/ios/bin/Debug/net10.0-ios/$RID/e_sqlcipher_tests.ios.app"
+dotnet build "$DIR/ios" -c Debug -r "$RID" -p:ExpectedSqlcipherVersion="$EXPECTED" -p:ExpectedSqliteVersion="$EXPECTED_SQLITE"
+APP="$DIR/ios/bin/Debug/net11.0-ios/$RID/e_sqlcipher_tests.ios.app"
 
 UDID="$(xcrun simctl list devices booted | grep -oE '[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}' | head -1 || true)"
 if [ -z "$UDID" ]; then
@@ -43,7 +44,7 @@ xcrun simctl install "$UDID" "$APP"
 # The app exits by itself when the checks are done; the timeout only guards against a hang.
 xcrun simctl launch --console-pty "$UDID" "$BUNDLE_ID" > "$LOG" 2>&1 &
 PID=$!
-for _ in $(seq 1 120); do
+for _ in $(seq 1 600); do
     kill -0 "$PID" 2>/dev/null || break
     grep -q "E_SQLCIPHER_TESTS: " "$LOG" && break
     sleep 1

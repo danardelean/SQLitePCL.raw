@@ -7,7 +7,7 @@
     <license type="expression">BSD-3-Clause</license>
     <readme>README.md</readme>
     <projectUrl>https://github.com/sqlcipher/sqlcipher</projectUrl>
-    <description>Native SQLCipher 4.19.0 builds (based on SQLite 3.53.4) for use with SQLitePCLRaw. Provides encrypted SQLite database support via the e_sqlcipher provider. Includes builds for Windows (x64, arm64), Linux (x64, arm64), macOS (x64, arm64), Android (arm64, arm, x64), and iOS (arm64 device, arm64+x64 simulator). Linux/Windows/Android use OpenSSL for crypto; macOS/iOS use CommonCrypto.</description>
+    <description>Native SQLCipher 4.20.0 builds (based on SQLite 3.54.1) for use with SQLitePCLRaw. Provides encrypted SQLite database support via the e_sqlcipher provider. Includes builds for Windows (x64, arm64), Linux (x64, arm64), macOS (x64, arm64), Android (arm64, arm, x64), and iOS (arm64 device, arm64+x64 simulator). Linux/Windows/Android use OpenSSL for crypto; macOS/iOS use CommonCrypto.</description>
     <copyright>Copyright 2008-2026 Zetetic LLC. All rights reserved.</copyright>
     <tags>sqlite sqlcipher encryption native</tags>
     <repository type="git" url="https://github.com/danardelean/SQLitePCL.raw" />
@@ -37,7 +37,7 @@
 
     <!--
       Desktop targets under netstandard2.0/ so NuGet only selects them for
-      desktop TFMs (net8.0, net10.0, net471, netstandard2.0, etc.).
+      desktop TFMs (net8.0, net10.0, net11.0, net471, netstandard2.0, etc.).
       For iOS/Android, the more-specific TFM folders below win NuGet's
       TFM resolution, so the desktop targets never fire on mobile builds.
       IMPORTANT: Do NOT add a root-level build/e_sqlcipher.targets — it
@@ -48,12 +48,12 @@
     <file src="e_sqlcipher.native.targets" target="buildTransitive/netstandard2.0/e_sqlcipher.targets" />
 
     <!-- .NET MAUI / Android targets -->
-    <file src="e_sqlcipher.native.android.targets" target="build/net10.0-android36.0/e_sqlcipher.targets" />
-    <file src="e_sqlcipher.native.android.targets" target="buildTransitive/net10.0-android36.0/e_sqlcipher.targets" />
+    <file src="e_sqlcipher.native.android.targets" target="build/net11.0-android36.0/e_sqlcipher.targets" />
+    <file src="e_sqlcipher.native.android.targets" target="buildTransitive/net11.0-android36.0/e_sqlcipher.targets" />
 
     <!-- .NET MAUI / iOS targets -->
-    <file src="e_sqlcipher.native.ios.targets" target="build/net10.0-ios26.0/e_sqlcipher.targets" />
-    <file src="e_sqlcipher.native.ios.targets" target="buildTransitive/net10.0-ios26.0/e_sqlcipher.targets" />
+    <file src="e_sqlcipher.native.ios.targets" target="build/net11.0-ios26.0/e_sqlcipher.targets" />
+    <file src="e_sqlcipher.native.ios.targets" target="buildTransitive/net11.0-ios26.0/e_sqlcipher.targets" />
 
     <file src="README.md" target="README.md" />
   </files>

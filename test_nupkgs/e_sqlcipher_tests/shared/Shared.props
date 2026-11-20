@@ -5,21 +5,35 @@
   <PropertyGroup>
     <RootNamespace>e_sqlcipher_tests</RootNamespace>
     <Nullable>disable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- The core suite's crypto tests and the SQLCipher fixture tests. -->
+    <DefineConstants>$(DefineConstants);TEST_WITH_CRYPTO;TEST_SQLCIPHER</DefineConstants>
+    <NoWarn>$(NoWarn);CS8981</NoWarn>
     <!-- CI passes -p:ExpectedSqlcipherVersion=x.y.z so a stale native library is caught. -->
     <ExpectedSqlcipherVersion Condition=" '$(ExpectedSqlcipherVersion)' == '' "></ExpectedSqlcipherVersion>
+    <ExpectedSqliteVersion Condition=" '$(ExpectedSqliteVersion)' == '' "></ExpectedSqliteVersion>
   </PropertyGroup>
 
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)SqlcipherChecks.cs" Link="shared\SqlcipherChecks.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)TestRunner.cs" Link="shared\TestRunner.cs" />
+    <!-- The core SQLitePCLRaw test suite, run by the reflection-based runner in fake_xunit.cs. -->
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\..\src\common\attrs_for_tests.cs" Link="core\attrs_for_tests.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\..\src\common\fake_xunit.cs" Link="core\fake_xunit.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\..\src\common\tests_xunit.cs" Link="core\tests_xunit.cs" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)..\..\..\src\common\sqlcipher-4.0-testkey.db" LogicalName="sqlcipher-4.0-testkey.db" />
+    <!-- The runner finds the tests through reflection: keep the test assembly whole when trimming. -->
+    <TrimmerRootAssembly Include="$(AssemblyName)" />
     <EmbeddedResource Include="$(MSBuildThisFileDirectory)fixtures\sqlcipher_4_14_0.db" LogicalName="sqlcipher_4_14_0.db" />
     <AssemblyMetadata Include="ExpectedSqlcipherVersion" Value="$(ExpectedSqlcipherVersion)" />
+    <AssemblyMetadata Include="ExpectedSqliteVersion" Value="$(ExpectedSqliteVersion)" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="sqlitepclraw.bundle_e_sqlcipher" Version="$(pkg_version_for_testing)" />
     <PackageReference Include="sqlitepclraw.ugly" Version="$(pkg_version_for_testing)" />
     <!-- The stack real applications use: built against SQLitePCLRaw.core 2.x, running on 3.x. -->
-    <PackageReference Include="Microsoft.Data.Sqlite.Core" Version="10.0.10" />
+    <PackageReference Include="Microsoft.Data.Sqlite.Core" Version="11.0.0" />
   </ItemGroup>
 
 </Project>
