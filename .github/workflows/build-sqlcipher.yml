@@ -10,6 +10,9 @@ on:
       - 'build/**'
       - 'gen_providers/**'
       - 'test_nupkgs/e_sqlcipher_tests/**'
+      - 'test_nupkgs/e_sqlcipher/**'
+      - 'version_stamp/**'
+      - 'global.json'
   pull_request:
     branches: [ main ]
   workflow_dispatch:
