@@ -23,7 +23,9 @@ let main argv =
 
     let dir_nupkgs = Path.Combine(top, "nupkgs")
     Directory.CreateDirectory(dir_nupkgs) |> ignore
-    for s in Directory.GetFiles(dir_nupkgs, "*.nupkg") do
+    // Keep the native e_sqlcipher package: it is built by the build-sqlcipher
+    // workflow (or by hand, see build_native/README.md), not by this script.
+    for s in Directory.GetFiles(dir_nupkgs, "SQLitePCLRaw.*.nupkg") do
         File.Delete(s)
 
     // All the regular packages
@@ -88,7 +90,7 @@ let main argv =
         ]
 
     let fake_xunit_tfms = [
-        yield "net10.0"
+        yield "net11.0"
         if RuntimeInformation.IsOSPlatform(OSPlatform.Windows) then yield "net471"
         ]
 
@@ -99,13 +101,24 @@ let main argv =
         if RuntimeInformation.IsOSPlatform(OSPlatform.Windows) then yield "winsqlite3"
         ]
 
+    // real_xunit only targets $(tfm_net).
+    for dir in real_xunit_dirs do
+        exec "dotnet" "test --framework=net11.0" (Path.Combine(top, "test_nupkgs", dir, "real_xunit"))
+
     for tfm in fake_xunit_tfms do
-        for dir in real_xunit_dirs do
-            let args = sprintf "test --framework=%s" tfm
-            exec "dotnet" args (Path.Combine(top, "test_nupkgs", dir, "real_xunit"))
         for dir in fake_xunit_dirs do
             let args = sprintf "run --framework=%s" tfm
             exec "dotnet" args (Path.Combine(top, "test_nupkgs", dir, "fake_xunit"))
+
+    // The e_sqlcipher tests need the native e_sqlcipher package in nupkgs/.
+    if Directory.GetFiles(dir_nupkgs, "e_sqlcipher.*.nupkg").Length > 0 then
+        exec "dotnet" "run" (Path.Combine(top, "test_nupkgs", "e_sqlcipher_smoke"))
+        for tfm in fake_xunit_tfms do
+            let args = sprintf "run --framework=%s" tfm
+            exec "dotnet" args (Path.Combine(top, "test_nupkgs", "e_sqlcipher", "fake_xunit"))
+        exec "dotnet" "run" (Path.Combine(top, "test_nupkgs", "e_sqlcipher_tests", "desktop"))
+    else
+        printfn "skipping the e_sqlcipher tests: no e_sqlcipher.*.nupkg in %s" dir_nupkgs
 
 #if not // TODO currently fails in the GitHub Action, not yet sure why
     if RuntimeInformation.IsOSPlatform(OSPlatform.Windows) then

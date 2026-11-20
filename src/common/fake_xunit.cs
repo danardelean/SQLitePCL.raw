@@ -149,13 +149,17 @@ namespace Xunit
 
     public static class Run
     {
+        // Where the results go.  The mobile test heads replace it, since
+        // their console output does not reach the test log.
+        public static System.IO.TextWriter Output = System.Console.Out;
+
         static void w(string s)
         {
-            System.Console.Write("{0}", s);
+            Output.Write("{0}", s);
         }
         static void wn(string s)
         {
-            System.Console.WriteLine("{0}", s);
+            Output.WriteLine("{0}", s);
         }
 
         class compare_test_classes : IComparer<Type>

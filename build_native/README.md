@@ -1,7 +1,7 @@
 # e_sqlcipher - Native SQLCipher Builds
 
-This package contains native builds of [SQLCipher](https://github.com/sqlcipher/sqlcipher) 4.19.0
-(based on SQLite 3.53.4) for use with `SQLitePCLRaw.provider.e_sqlcipher`.
+This package contains native builds of [SQLCipher](https://github.com/sqlcipher/sqlcipher) 4.20.0
+(based on SQLite 3.54.1) for use with `SQLitePCLRaw.provider.e_sqlcipher`.
 
 ## Platforms
 
@@ -40,22 +40,18 @@ SQLitePCL.Batteries_V2.Init();
 
 ## Relationship with upstream SQLitePCLRaw
 
-This fork tracks upstream `v3.0.5` and only adds SQLCipher support. `SQLitePCLRaw.core` and
-`SQLitePCLRaw.provider.internal` are unmodified, so consumers take them from nuget.org.
+This fork is based on upstream `v3.0.5`, moved to .NET 11 (`net11.0`, `net11.0-ios`,
+`net11.0-android`, ...; `netstandard2.0` stays for older runtimes) and adds SQLCipher support.
+Since the .NET 11 build changes `SQLitePCLRaw.core` and the providers too, every
+`SQLitePCLRaw.*` package carries the fork version `3.0.6-net11`, so it never collides with
+the official packages on nuget.org.
 
-Publish only these packages to the private feed:
+Publish all of these together:
 
 | Package | Version |
 |---------|---------|
-| `e_sqlcipher` | 4.19.0 |
-| `SQLitePCLRaw.provider.e_sqlcipher` | same as upstream (3.0.5) |
-| `SQLitePCLRaw.config.e_sqlcipher` | same as upstream (3.0.5) |
-| `SQLitePCLRaw.bundle_e_sqlcipher` | same as upstream (3.0.5) |
+| `e_sqlcipher` | 4.20.0 |
+| `SQLitePCLRaw.*` (core, ugly, providers, config, bundles) | 3.0.6-net11 |
 
-Do not publish the other `SQLitePCLRaw.*` packages the build produces: they would shadow the
-official ones.
-
-When moving to a new upstream release, set `OFFICIAL_BUILD_NUMBER` in `version_stamp/Program.cs`
-to the last component of the assembly version of the official `SQLitePCLRaw.core` package
-(3129 for 3.0.5). The SQLCipher assemblies are compiled against the locally built core; with a
-higher number they fail to load the official one at runtime.
+The version comes from `MAJOR/MINOR/PATCH_VERSION` and `FORK_SUFFIX` in
+`version_stamp/Program.cs`.

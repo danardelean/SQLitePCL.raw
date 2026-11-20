@@ -3629,55 +3629,81 @@ namespace SQLitePCL.Tests
                 ugly.vfs__delete(null, name, 1);
         }
 
-#if TODO
+#if TEST_SQLCIPHER
+        // The fixture is embedded in the test assembly (see the test projects) so the
+        // same code works on desktop, iOS and Android; it is copied next to the
+        // other temporary databases because the tests open it read-write.
+        static string copy_fixture(string name)
+        {
+            string path = "tmp" + Guid.NewGuid().ToString("N") + "_" + name;
+            using (var src = typeof(class_test_crypto).Assembly.GetManifestResourceStream(name))
+            {
+                Assert.NotNull(src);
+                using (var dst = System.IO.File.Create(path))
+                {
+                    src.CopyTo(dst);
+                }
+            }
+            return path;
+        }
+
         [Fact]
         public void test_database_is_SQLCipher4()
         {
-            if (is_sqlite3mc())
+            // Created by SQLCipher 4.0 with the default settings.
+            // Result: 78536 1 1 one one 1 2 one two
+            string name = copy_fixture("sqlcipher-4.0-testkey.db");
+            using (sqlite3 db = ugly.open(name))
             {
-                Assert.Contains("sqlite3mc", raw.GetNativeLibraryName());
-                // Test to access database encrypted with SQLCipher version 4
-                // Result: 78536 1 1 one one 1 2 one two
-                using (sqlite3 db = ugly.open("file:sqlcipher-4.0-testkey.db?cipher=sqlcipher&legacy=4"))
-                {
-                    const string pswd = "testkey";
-                    var key = u.to_utf8(pswd);
-                    db.key(key);
-                    var value = db.query_scalar<int>("select count(*) from t1");
-                    Assert.Equal(78536, value);
-                }
+                db.key(u.to_utf8("testkey"));
+                Assert.Equal(78536, db.query_scalar<int>("select count(*) from t1"));
+                Assert.Equal("ok", db.query_scalar<string>("PRAGMA integrity_check"));
             }
-            else
+            using (sqlite3 db = ugly.open(name))
             {
-                Assert.DoesNotContain("sqlite3mc", raw.GetNativeLibraryName());
+                db.key(u.to_utf8("wrong"));
+                Assert.Throws<ugly.sqlite3_exception>(() => db.query_scalar<int>("select count(*) from t1"));
             }
+            ugly.vfs__delete(null, name, 1);
         }
 
-#if TODO
         [Fact]
-        public void test_database_is_custom_SQLCipher2()
+        public void test_cipher_compatibility_3_and_migrate()
         {
-            if (is_sqlite3mc())
+            string name = "tmp" + Guid.NewGuid().ToString("N");
+            using (sqlite3 db = ugly.open(name))
             {
-                Assert.Contains("sqlite3mc", raw.GetNativeLibraryName());
-                // Test to access database encrypted with SQLCipher version 2
-                // using 4000 iterations for the HMAC key derivation and a HMAC salt mask of zero
-                // Result: 38768 test-0-0 test-0-1 test-1-0 test-1-1
-                using (sqlite3 db = ugly.open("file:sqlcipher-2.0-beta-testkey.db?cipher=sqlcipher&legacy=2&fast_kdf_iter=4000&hmac_salt_mask=0"))
-                {
-                    const string pswd = "testkey";
-                    var key = u.to_utf8(pswd);
-                    db.key(key);
-                    var value = db.query_scalar<int>("select count(*) from t1");
-                    Assert.Equal(38768, value);
-                }
+                db.exec("PRAGMA key = 'v3key'");
+                db.exec("PRAGMA cipher_compatibility = 3");
+                db.exec("CREATE TABLE t (x int)");
+                db.exec("INSERT INTO t VALUES (42)");
             }
-            else
+            // With the 4.x defaults the 3.x database does not open...
+            using (sqlite3 db = ugly.open(name))
             {
-                Assert.DoesNotContain("sqlite3mc", raw.GetNativeLibraryName());
+                db.exec("PRAGMA key = 'v3key'");
+                Assert.Throws<ugly.sqlite3_exception>(() => db.query_scalar<int>("SELECT x FROM t"));
             }
+            // ...with compatibility 3 it does...
+            using (sqlite3 db = ugly.open(name))
+            {
+                db.exec("PRAGMA key = 'v3key'");
+                db.exec("PRAGMA cipher_compatibility = 3");
+                Assert.Equal(42, db.query_scalar<int>("SELECT x FROM t"));
+            }
+            // ...and cipher_migrate upgrades it in place to the 4.x format.
+            using (sqlite3 db = ugly.open(name))
+            {
+                db.exec("PRAGMA key = 'v3key'");
+                Assert.Equal("0", db.query_scalar<string>("PRAGMA cipher_migrate"));
+            }
+            using (sqlite3 db = ugly.open(name))
+            {
+                db.exec("PRAGMA key = 'v3key'");
+                Assert.Equal(42, db.query_scalar<int>("SELECT x FROM t"));
+            }
+            ugly.vfs__delete(null, name, 1);
         }
-        #endif
 #endif
     }
 #endif
